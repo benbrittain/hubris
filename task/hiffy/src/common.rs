@@ -254,9 +254,6 @@ pub(crate) fn spi_write(
     Ok(0)
 }
 
-#[cfg(any(feature = "qspi", feature = "hash"))]
-use userlib::*;
-
 #[cfg(feature = "qspi")]
 task_slot!(HF, hf);
 
@@ -575,4 +572,102 @@ pub(crate) fn rng_fill(
 
     func_err(Rng::from(RNG.get_task_id()).fill(&mut rval[0..count]))?;
     Ok(count)
+}
+
+#[cfg(feature = "update")]
+task_slot!(UPDATE, update_server);
+
+#[cfg(feature = "update")]
+fn update_args(stack: &[Option<u32>]) -> Result<(usize, usize), Failure> {
+    if stack.len() < 2 {
+        return Err(Failure::Fault(Fault::MissingParameters));
+    }
+
+    let fp = stack.len() - 2;
+
+    let len = match stack[fp + 0] {
+        Some(len) => len as usize,
+        None => {
+            return Err(Failure::Fault(Fault::EmptyParameter(0)));
+        }
+    };
+
+    let block_num = match stack[fp + 1] {
+        Some(len) => len as usize,
+        None => {
+            return Err(Failure::Fault(Fault::EmptyParameter(0)));
+        }
+    };
+
+    Ok((block_num, len))
+}
+
+#[cfg(feature = "update")]
+pub(crate) fn write_block(
+    stack: &[Option<u32>],
+    data: &[u8],
+    _rval: &mut [u8],
+) -> Result<usize, Failure> {
+    let (start_block, len) = update_args(stack)?;
+
+    if len > data.len() {
+        return Err(Failure::Fault(Fault::AccessOutOfBounds));
+    }
+
+    let update = drv_update_api::Update::from(UPDATE.get_task_id());
+
+    let block_size = func_err(update.block_size())?;
+
+    for (i, c) in data[..len].chunks(block_size).enumerate() {
+        func_err(update.write_one_block(start_block + i, c))?;
+    }
+
+    Ok(0)
+}
+
+#[cfg(feature = "update")]
+pub(crate) fn start_update(
+    _stack: &[Option<u32>],
+    _data: &[u8],
+    _rval: &mut [u8],
+) -> Result<usize, Failure> {
+    func_err(
+        drv_update_api::Update::from(UPDATE.get_task_id()).prep_image_update(),
+    )?;
+    Ok(0)
+}
+
+#[cfg(feature = "update")]
+pub(crate) fn finish_update(
+    _stack: &[Option<u32>],
+    _data: &[u8],
+    _rval: &mut [u8],
+) -> Result<usize, Failure> {
+    func_err(
+        drv_update_api::Update::from(UPDATE.get_task_id())
+            .finish_image_update(),
+    )?;
+    Ok(0)
+}
+
+#[cfg(feature = "update")]
+pub(crate) fn block_size(
+    _stack: &[Option<u32>],
+    _data: &[u8],
+    rval: &mut [u8],
+) -> Result<usize, Failure> {
+    let size = func_err(
+        drv_update_api::Update::from(UPDATE.get_task_id()).block_size(),
+    )?;
+
+    let bytes: [u8; 4] = [
+        (size & 0xff) as u8,
+        ((size >> 8) & 0xff) as u8,
+        ((size >> 16) & 0xff) as u8,
+        ((size >> 24) & 0xff) as u8,
+    ];
+
+    rval[..4].copy_from_slice(&bytes);
+
+    Ok(4)
 }
