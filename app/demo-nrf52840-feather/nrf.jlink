@@ -1,0 +1,8 @@
+if swd
+speed auto
+device nrf52840_xxAA
+erase
+loadbin target/demo-nrf52840-feather/dist/final.bin, 0x00
+SWOStart
+r
+G

@@ -5,12 +5,10 @@
 #![no_std]
 #![no_main]
 
-//#[cfg(not(any(feature = "panic-itm", feature = "panic-semihosting")))]
-#[cfg(not(any(feature = "panic-semihosting")))]
-compile_error!(
-    "Must have either feature panic-itm or panic-semihosting enabled"
-);
+#[cfg(not(any(feature = "panic-itm", feature = "panic-semihosting", feature = "panic-halt")))]
 // Panic behavior controlled by Cargo features:
+#[cfg(feature = "panic-halt")]
+extern crate panic_halt;
 #[cfg(feature = "panic-itm")]
 extern crate panic_itm; // breakpoint on `rust_begin_unwind` to catch panics
 #[cfg(feature = "panic-semihosting")]

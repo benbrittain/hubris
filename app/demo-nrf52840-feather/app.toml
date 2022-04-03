@@ -8,7 +8,7 @@ stacksize = 896
 path = "."
 name = "demo-nrf52840-feather"
 requires = {flash = 60000, ram = 3072}
-features = ["semihosting"]
+features = ["itm"]
 
 [supervisor]
 notification = 1
@@ -40,7 +40,7 @@ name = "task-jefe"
 priority = 0
 requires = {flash = 16384, ram = 2048}
 start = true
-features = ["semihosting"]
+features = ["itm"]
 stacksize = 1536
 
 [tasks.hiffy]
@@ -48,7 +48,6 @@ path = "../../task/hiffy"
 name = "task-hiffy"
 priority = 3
 requires = {flash = 16384, ram = 16384 }
-features = ["semihosting"]
 stacksize = 2048
 start = true
 

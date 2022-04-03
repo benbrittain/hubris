@@ -44,6 +44,7 @@ fn main() -> ! {
             dl += INTERVAL;
             sys_set_timer(Some(dl), TIMER_NOTIFICATION);
 
+            sys_log!("time: {}", dl);
             let _ = gpio.toggle(Port(1), Pin(10));
             let _ = gpio.toggle(Port(1), Pin(15));
         } else {

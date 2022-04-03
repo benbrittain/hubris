@@ -15,7 +15,6 @@ panic-itm = { version = "0.4.1", optional = true }
 panic-halt = { version = "0.2.0", optional = true }
 panic-semihosting = { version = "*", optional = true }
 nrf52840-pac = { version = "0.11.0", features = ["rt"] }
-#nrf52840-pac = { version = "0.11.0" }
 
 drv-nrf52-gpio-api = {path = "../../drv/nrf52-gpio/api"}
 
@@ -23,7 +22,7 @@ drv-nrf52-gpio-api = {path = "../../drv/nrf52-gpio/api"}
 path = "../../sys/kern"
 default-features = false
 
-# this lets you use `cargo fix`!
+# enables `cargo fix` usage.
 [[bin]]
 name = "demo-nrf52840-feather"
 test = false

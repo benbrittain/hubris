@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 cortex-m = {version = "0.7", features = ["inline-asm"]}
 cortex-m-semihosting = {version = "*"}
-userlib = {path = "../../sys/userlib", features = ["panic-messages", "log-semihosting"]}
+userlib = {path = "../../sys/userlib", features = ["panic-messages", "log-itm"]}
 drv-nrf52-gpio-api = {path = "../../drv/nrf52-gpio/api"}
 
 [[bin]]
