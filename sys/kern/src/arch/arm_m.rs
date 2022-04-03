@@ -420,6 +420,13 @@ pub fn apply_memory_protection(task: &task::Task) {
         &*cortex_m::peripheral::MPU::ptr()
     };
 
+    unsafe {
+        const DISABLE: u32 = 0b000;
+        const PRIVDEFENA: u32 = 0b100;
+        cortex_m::asm::dmb();
+        mpu.ctrl.write(DISABLE | PRIVDEFENA);
+    }
+
     for (i, region) in task.region_table().iter().enumerate() {
         let rbar = (i as u32)  // region number
             | (1 << 4)  // honor the region number
@@ -494,10 +501,19 @@ pub fn apply_memory_protection(task: &task::Task) {
             | scb << 16
             | l2size << 1
             | (1 << 0); // enable
+
         unsafe {
             mpu.rbar.write(rbar);
             mpu.rasr.write(rasr);
         }
+    }
+
+    unsafe {
+        const ENABLE: u32 = 0b001;
+        const PRIVDEFENA: u32 = 0b100;
+        mpu.ctrl.write(ENABLE | PRIVDEFENA);
+        cortex_m::asm::dmb();
+        cortex_m::asm::isb();
     }
 }
 
