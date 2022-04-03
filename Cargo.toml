@@ -39,6 +39,8 @@ members = [
 
     "task/template",
 
+    "task/blinky",
+
     "task/jefe",
     "task/ping",
     "task/pong",
