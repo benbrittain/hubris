@@ -1,0 +1,7 @@
+[uart0]
+address = 0x4000_2000
+size = 0x1000
+
+[gpio0]
+address = 0x5000_0000
+size = 0x2000
