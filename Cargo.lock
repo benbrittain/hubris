@@ -519,6 +519,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76fbd10dce159c002b9c688ae8ab7cd531151e185e0ad360f4bfea3b0eede3a8"
 
 [[package]]
+name = "demo-nrf52840-feather"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "drv-nrf52-gpio-api",
+ "kern",
+ "nrf52840-pac",
+ "panic-halt",
+ "panic-itm",
+ "panic-semihosting",
+]
+
+[[package]]
 name = "demo-stm32f4-discovery"
 version = "0.1.0"
 dependencies = [
@@ -900,6 +914,45 @@ dependencies = [
  "drv-lpc55-syscon-api",
  "lpc55-pac",
  "serde",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-nrf52-gpio-api"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "cfg-if 1.0.0",
+ "drv-nrf52-gpio-common",
+ "idol",
+ "num-traits",
+ "unwrap-lite",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-nrf52-gpio-common"
+version = "0.1.0"
+dependencies = [
+ "num-traits",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-nrf52840-gpio"
+version = "0.1.0"
+dependencies = [
+ "cfg-if 1.0.0",
+ "cortex-m-semihosting",
+ "drv-nrf52-gpio-api",
+ "drv-nrf52-gpio-common",
+ "idol",
+ "idol-runtime",
+ "nrf52840-pac",
+ "num-traits",
  "userlib",
  "zerocopy",
 ]
@@ -1852,6 +1905,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nrf52840-pac"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9efa9d1e910e3b825fd7e28f369363a8e036b386b77e21035b9f0e510de199cf"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "vcell",
+]
+
+[[package]]
 name = "num"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2799,6 +2863,16 @@ name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
+
+[[package]]
+name = "task-blinky"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-semihosting",
+ "drv-nrf52-gpio-api",
+ "userlib",
+]
 
 [[package]]
 name = "task-config"
