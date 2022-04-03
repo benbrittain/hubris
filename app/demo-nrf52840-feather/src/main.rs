@@ -16,7 +16,7 @@ extern crate panic_itm; // breakpoint on `rust_begin_unwind` to catch panics
 #[cfg(feature = "panic-semihosting")]
 extern crate panic_semihosting; // requires a debugger
 
-use nrf52840_pac;
+extern crate nrf52840_pac;
 
 use cortex_m_rt::entry;
 

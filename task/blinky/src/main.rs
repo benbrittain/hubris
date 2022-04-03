@@ -17,21 +17,21 @@ fn main() -> ! {
 
     let gpio = Gpio::from(GPIO.get_task_id());
 
-    let ret = gpio.configure(
+    let _ = gpio.configure(
         Port(1),
         Pin(10),
         Mode::Output,
         OutputType::PushPull,
         Pull::None,
     );
-    let ret = gpio.configure(
+    let _ = gpio.configure(
         Port(1),
         Pin(15),
         Mode::Output,
         OutputType::PushPull,
         Pull::None,
     );
-    gpio.toggle(Port(1), Pin(15));
+    let _ = gpio.toggle(Port(1), Pin(15));
 
     let mut msg = [0; 16];
     let mut dl = INTERVAL;
@@ -44,8 +44,8 @@ fn main() -> ! {
             dl += INTERVAL;
             sys_set_timer(Some(dl), TIMER_NOTIFICATION);
 
-            gpio.toggle(Port(1), Pin(10));
-            gpio.toggle(Port(1), Pin(15));
+            let _ = gpio.toggle(Port(1), Pin(10));
+            let _ = gpio.toggle(Port(1), Pin(15));
         } else {
             sys_panic(b"nothing besides the kernel should be talking to this!");
         }

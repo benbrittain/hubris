@@ -16,7 +16,7 @@ struct GpioServer<'a> {
 impl idl::InOrderGpioImpl for GpioServer<'_> {
     fn configure(
         &mut self,
-        msg: &RecvMessage,
+        _msg: &RecvMessage,
         port: Port,
         pin: Pin,
         mode: Mode,
@@ -72,7 +72,7 @@ impl idl::InOrderGpioImpl for GpioServer<'_> {
 
     fn toggle(
         &mut self,
-        msg: &RecvMessage,
+        _msg: &RecvMessage,
         port: Port,
         pin: Pin,
     ) -> Result<(), RequestError<GpioError>> {

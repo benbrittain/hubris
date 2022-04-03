@@ -19,7 +19,7 @@ pub enum GpioError {
 }
 
 impl From<u32> for GpioError {
-    fn from(error: u32) -> GpioError {
+    fn from(_: u32) -> GpioError {
         GpioError::Unknown
     }
 }
