@@ -1,0 +1,26 @@
+[package]
+name = "drv-nrf52840-gpio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+userlib = {path = "../../sys/userlib", features = ["log-semihosting"]}
+zerocopy = "0.6.1"
+num-traits = { version = "0.2.12", default-features = false }
+idol-runtime = {git = "https://github.com/oxidecomputer/idolatry.git"}
+cortex-m-semihosting = { version = "0.3.7"}
+cfg-if = "1"
+
+nrf52840-pac = { version = "0.11.0", default-features = false }
+drv-nrf52-gpio-api = {path = "./api"}
+drv-nrf52-gpio-common = {path = "./common"}
+
+[build-dependencies]
+idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+
+# This section is here to discourage RLS/rust-analyzer from doing test builds,
+# since test builds don't work for cross compilation.
+[[bin]]
+name = "drv-nrf52840-gpio"
+test = false
+bench = false

@@ -1,0 +1,52 @@
+// nRF52840 GPIO IPC API
+
+Interface(
+  name: "Gpio",
+  ops: {
+        "configure": (
+            args: {
+                "port": (
+                    type: "Port",
+                    recv: FromPrimitive("u8"),
+                ),
+                "pin": (
+                    type: "Pin",
+                    recv: FromPrimitive("u8"),
+                ),
+                "mode": (
+                    type: "Mode",
+                    recv: FromPrimitive("u8"),
+                ),
+                "output_type": (
+                    type: "OutputType",
+                    recv: FromPrimitive("u8"),
+                ),
+                "pull": (
+                    type: "Pull",
+                    recv: FromPrimitive("u8"),
+                ),
+            },
+            reply: Result(
+                ok: "()",
+                err: CLike("GpioError"),
+            ),
+            idempotent: true,
+        ),
+        "toggle": (
+            args: {
+                "port": (
+                    type: "Port",
+                    recv: FromPrimitive("u8"),
+                ),
+                "pin": (
+                    type: "Pin",
+                    recv: FromPrimitive("u8"),
+                ),
+            },
+            reply: Result(
+                ok: "()",
+                err: CLike("GpioError"),
+            ),
+        ),
+  }
+)
