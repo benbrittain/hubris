@@ -63,8 +63,8 @@ impl idl::InOrderGpioImpl for GpioServer<'_> {
                 .variant(pull)
                 .drive()
                 .variant(drive)
-                .sense()
-                .disabled()
+//                .sense()
+//                .disabled()
         });
 
         Ok(())
@@ -85,6 +85,25 @@ impl idl::InOrderGpioImpl for GpioServer<'_> {
 
         let pin_state = port.out.read().bits();
         let new_state = pin_state ^ (1 << pin.0 as u32);
+        port.out.write(|w| unsafe { w.bits(new_state) });
+
+        Ok(())
+    }
+
+    fn set_high(
+        &mut self,
+        _msg: &RecvMessage,
+        port: Port,
+        pin: Pin,
+    ) -> Result<(), RequestError<GpioError>> {
+        assert!(pin.0 <= 31);
+        let port = match port {
+            Port(0) => self.p0,
+            Port(1) => self.p1,
+            _ => panic!("Invalid port"),
+        };
+
+        let new_state = 1 << pin.0 as u32;
         port.out.write(|w| unsafe { w.bits(new_state) });
 
         Ok(())
