@@ -1,6 +1,22 @@
-[uart0]
+# Layout from documentation:
+# https://infocenter.nordicsemi.com/topic/ps_nrf52840/memory.html?cp=4_0_0_3_1_2#memorymap
+
+[clock]
+address = 0x4000_0000
+size = 0x1000
+
+[radio]
+address = 0x4000_1000
+size = 0x1000
+
+[rtc]
+address = 0x4001_1000
+size = 0x1000
+
+[uarte0]
 address = 0x4000_2000
 size = 0x1000
+interrupts = { irq = 2 }
 
 [gpio0]
 address = 0x5000_0000

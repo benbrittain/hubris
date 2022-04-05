@@ -1,0 +1,12 @@
+[package]
+name = "drv-nrf52-uart"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+userlib = {path = "../../sys/userlib", features = ["panic-messages", "log-semihosting"]}
+zerocopy = "0.6"
+nrf52840-pac = "0.11.0"
+drv-nrf52-gpio-api = {path = "../../drv/nrf52-gpio/api"}
+cortex-m-semihosting = { version = "0.3.7" }
+cortex-m = "*"

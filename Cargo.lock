@@ -942,6 +942,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "drv-nrf52-uart"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-semihosting",
+ "drv-nrf52-gpio-api",
+ "nrf52840-pac",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "drv-nrf52840-gpio"
 version = "0.1.0"
 dependencies = [
