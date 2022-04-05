@@ -17,7 +17,6 @@ task_slot!(GPIO, gpio);
 const BUFFER_SIZE: usize = 32;
 static mut tx_buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
 
-
 #[repr(u32)]
 enum ResponseCode {
     Success = 0,
@@ -90,7 +89,6 @@ fn setup_uarte(
 fn main() -> ! {
     let uarte = unsafe { &*device::UARTE0::ptr() };
     let mut nvic = unsafe { &*cortex_m::peripheral::NVIC::ptr() };
-
 
     setup_uarte(
         uarte,
@@ -171,9 +169,9 @@ fn main() -> ! {
 
                     // Set interest in the ENDRX/ENDTX interrupts which indicate the buffer is no longer
                     // being modified or read.
-                    uarte.intenset.modify(|_r, w| {
-                        w.endrx().set().endtx().set()
-                    });
+                    uarte
+                        .intenset
+                        .modify(|_r, w| w.endrx().set().endtx().set());
 
                     // Start TX task.
                     uarte.tasks_starttx.write(|w| unsafe { w.bits(1) });
@@ -195,9 +193,8 @@ fn transmit_bytes(
     uarte: &device::uarte0::RegisterBlock,
     tx: &mut Transmit,
 ) -> bool {
-    let (rc, len) = unsafe {
-        sys_borrow_read(tx.task, 0, tx.pos, &mut tx_buffer)
-    };
+    let (rc, len) =
+        unsafe { sys_borrow_read(tx.task, 0, tx.pos, &mut tx_buffer) };
 
     if rc != 0 {
         sys_reply(tx.task, ResponseCode::BadArg as u32, &[]);

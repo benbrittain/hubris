@@ -23,6 +23,5 @@ fn main() -> ! {
     // 64 MHz
     const CYCLES_PER_MS: u32 = 64_000;
 
-
     unsafe { kern::startup::start_kernel(CYCLES_PER_MS) }
 }

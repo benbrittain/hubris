@@ -63,8 +63,8 @@ impl idl::InOrderGpioImpl for GpioServer<'_> {
                 .variant(pull)
                 .drive()
                 .variant(drive)
-//                .sense()
-//                .disabled()
+            //                .sense()
+            //                .disabled()
         });
 
         Ok(())
