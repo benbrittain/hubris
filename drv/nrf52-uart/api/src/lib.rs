@@ -7,12 +7,14 @@ use userlib::*;
 
 #[derive(Copy, Clone, Debug, FromPrimitive, PartialEq)]
 pub enum UartError {
-    Unknown,
+    Success,
+    Busy,
+    BadArg,
 }
 
 impl From<u32> for UartError {
-    fn from(_: u32) -> UartError {
-        UartError::Unknown
+    fn from(err: u32) -> UartError {
+        UartError::from(err)
     }
 }
 

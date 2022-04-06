@@ -17,15 +17,7 @@ use zerocopy::AsBytes;
 task_slot!(GPIO, gpio);
 
 const BUFFER_SIZE: usize = 32;
-static mut tx_buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
-
-#[repr(u32)]
-enum ResponseCode {
-    Success = 0,
-    BadOp = 1,
-    BadArg = 2,
-    Busy = 3,
-}
+static mut TX_BUFFER: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
 
 struct Transmit {
     task: TaskId,
@@ -95,13 +87,25 @@ struct UarteServer<'a> {
 }
 
 impl idl::PipelinedUartImpl for UarteServer<'_> {
-    fn configure(&mut self, _msg: &RecvMessage) {}
+    fn configure(&mut self, _msg: &RecvMessage) {
+        panic!("Not yet implemented!");
+    }
+
+    fn read(
+        &mut self,
+        msginfo: &RecvMessage,
+        buffer: idol_runtime::Leased<idol_runtime::W, [u8]>,
+    ) {
+    }
 
     fn write(
         &mut self,
         msginfo: &RecvMessage,
         buffer: idol_runtime::Leased<idol_runtime::R, [u8]>,
     ) {
+        // We use the Pipelined impl, but for now we only support one write
+        // action at a time
+        if self.current_txn.is_some() {}
         // Setup the state for the current transmission
         self.current_txn = Some(Transmit {
             task: msginfo.sender,
@@ -178,17 +182,17 @@ fn transmit_bytes(
     tx: &mut Transmit,
 ) -> bool {
     let (rc, len) =
-        unsafe { sys_borrow_read(tx.task, 0, tx.pos, &mut tx_buffer) };
+        unsafe { sys_borrow_read(tx.task, 0, tx.pos, &mut TX_BUFFER) };
 
     if rc != 0 {
-        sys_reply(tx.task, ResponseCode::BadArg as u32, &[]);
+        sys_reply(tx.task, UartError::BadArg as u32, &[]);
         true
     } else {
         // Point the txd ptr register at the tx_buffer
         uarte
             .txd
             .ptr
-            .write(|w| unsafe { w.ptr().bits(tx_buffer.as_ptr() as u32) });
+            .write(|w| unsafe { w.ptr().bits(TX_BUFFER.as_ptr() as u32) });
 
         // Max Count is set to the amount of data borrowed from the sending task.
         uarte
@@ -197,9 +201,8 @@ fn transmit_bytes(
             .write(|w| unsafe { w.maxcnt().bits(len as _) });
 
         tx.pos += len;
-
         if tx.pos == tx.len {
-            sys_reply(tx.task, ResponseCode::Success as u32, &[]);
+            sys_reply(tx.task, UartError::Success as u32, &[]);
             true
         } else if tx.pos > tx.len {
             panic!("This should not be possible!!");

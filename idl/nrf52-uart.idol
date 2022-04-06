@@ -21,5 +21,15 @@ Interface(
                 err: CLike("UartError"),
             ),
         ),
+        "read": (
+            args: { },
+            leases: {
+                "buffer": (type: "[u8]", write: true),
+            },
+            reply: Result(
+                ok: "()",
+                err: CLike("UartError"),
+            ),
+        ),
   }
 )
