@@ -16,7 +16,7 @@ use zerocopy::AsBytes;
 
 task_slot!(GPIO, gpio);
 
-const BUFFER_SIZE: usize = 32;
+const BUFFER_SIZE: usize = 16;
 static mut TX_BUFFER: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
 
 struct Transmit {
@@ -79,6 +79,8 @@ fn setup_uarte(
 
     // Clear ENDTX event.
     uarte.events_endtx.write(|w| w.events_endtx().clear_bit());
+
+    uarte.events_txstarted.reset();
 }
 
 struct UarteServer<'a> {
@@ -105,7 +107,10 @@ impl idl::PipelinedUartImpl for UarteServer<'_> {
     ) {
         // We use the Pipelined impl, but for now we only support one write
         // action at a time
-        if self.current_txn.is_some() {}
+        if self.current_txn.is_some() {
+            sys_reply(msginfo.sender, UartError::Busy as u32, &[]);
+        }
+
         // Setup the state for the current transmission
         self.current_txn = Some(Transmit {
             task: msginfo.sender,
@@ -113,13 +118,17 @@ impl idl::PipelinedUartImpl for UarteServer<'_> {
             len: buffer.len(),
         });
 
-        // Set interest in the ENDRX/ENDTX interrupts which indicate the buffer is no longer
-        // being modified or read.
-        //
-        // TODO only set endtx() ?
+        // Set interest in the TXSTARTED/ENDTX interrupts which indicate the buffer is no longer
+        // being written and that the starting has occured
         self.uarte
             .intenset
-            .modify(|_r, w| w.endrx().set().endtx().set());
+            .modify(|_r, w| w.txstarted().set().endtx().set());
+
+        // Zero out the maxcnt so we don't write things from the old buffer
+        self.uarte
+            .txd
+            .maxcnt
+            .write(|w| unsafe { w.maxcnt().bits(0) });
 
         // Start TX task.
         self.uarte.tasks_starttx.write(|w| unsafe { w.bits(1) });
@@ -134,14 +143,30 @@ impl NotificationHandler for UarteServer<'_> {
     fn handle_notification(&mut self, bits: u32) {
         // When a UART interrupt is recieved, send bytes
         // and rearm the irq
+        sys_irq_control(UART_IRQ_MASK, true);
+
         if bits & UART_IRQ_MASK != 0 {
-            if let Some(txn) = self.current_txn.as_mut() {
-                if transmit_bytes(&self.uarte, txn) {
-                    self.current_txn = None;
-                    stop_write(self.uarte);
+            self.uarte.events_txdrdy.reset();
+            self.uarte.events_txstarted.reset();
+
+            // If the endtx is set, we can proceed with more bytes
+            if self.uarte.events_endtx.read().events_endtx().bit() {
+                if self.current_txn.is_some() {
+                    self.uarte.events_endtx.reset();
+                    transmit_bytes(&self.uarte, &mut self.current_txn);
                 }
             }
-            sys_irq_control(UART_IRQ_MASK, true);
+
+            // UARTE has been stopped, return control to sending task
+            if self.uarte.events_txstopped.read().events_txstopped().bit() {
+                if let Some(tx) = &mut self.current_txn {
+                    let task = tx.task;
+                    self.current_txn = None;
+                    self.uarte.events_txstopped.reset();
+                    self.uarte.events_endtx.reset();
+                    sys_reply(task, UartError::Success as u32, &[]);
+                }
+            }
         }
     }
 }
@@ -172,42 +197,47 @@ fn main() -> ! {
 
 fn stop_write(uarte: &uarte0::RegisterBlock) {
     uarte.tasks_stoptx.write(|w| unsafe { w.bits(1) });
-    uarte.events_endtx.reset();
-    uarte.events_txstopped.reset();
+    uarte.events_txdrdy.reset();
     uarte.events_txstarted.reset();
+    // We do the actual reply to the sending task when the
+    // txstopped event triggers
 }
 
 fn transmit_bytes(
     uarte: &device::uarte0::RegisterBlock,
-    tx: &mut Transmit,
-) -> bool {
-    let (rc, len) =
-        unsafe { sys_borrow_read(tx.task, 0, tx.pos, &mut TX_BUFFER) };
-
-    if rc != 0 {
-        sys_reply(tx.task, UartError::BadArg as u32, &[]);
-        true
-    } else {
-        // Point the txd ptr register at the tx_buffer
-        uarte
-            .txd
-            .ptr
-            .write(|w| unsafe { w.ptr().bits(TX_BUFFER.as_ptr() as u32) });
-
-        // Max Count is set to the amount of data borrowed from the sending task.
-        uarte
-            .txd
-            .maxcnt
-            .write(|w| unsafe { w.maxcnt().bits(len as _) });
-
-        tx.pos += len;
+    transmit: &mut Option<Transmit>,
+) {
+    if let Some(tx) = transmit {
+        // If we've already written the last set of bytes
+        // and increment the pos, stop writing
         if tx.pos == tx.len {
-            sys_reply(tx.task, UartError::Success as u32, &[]);
-            true
+            return stop_write(uarte);
         } else if tx.pos > tx.len {
-            panic!("This should not be possible!!");
+            sys_reply(tx.task, UartError::Unrecoverable as u32, &[]);
+        }
+
+        let (rc, len) =
+            unsafe { sys_borrow_read(tx.task, 0, tx.pos, &mut TX_BUFFER) };
+
+        if rc != 0 {
+            sys_reply(tx.task, UartError::BadArg as u32, &[]);
         } else {
-            false
+            // Point the txd ptr register at the tx_buffer
+            uarte
+                .txd
+                .ptr
+                .write(|w| unsafe { w.ptr().bits(TX_BUFFER.as_ptr() as u32) });
+
+            // Max Count is set to the amount of data borrowed from the sending task.
+            uarte
+                .txd
+                .maxcnt
+                .write(|w| unsafe { w.maxcnt().bits(len as _) });
+
+            // we updated the maxcnt, so retrigger the start task
+            uarte.tasks_starttx.write(|w| unsafe { w.bits(1) });
+
+            tx.pos += len;
         }
     }
 }

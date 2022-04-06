@@ -50,8 +50,19 @@ fn main() -> ! {
             dl += INTERVAL;
             sys_set_timer(Some(dl), TIMER_NOTIFICATION);
 
-            let text: &[u8] = b"test bwb!\r\n";
+            let text: &[u8] = b"123456789ABCDE\r\n";
             let resp = uart.write(text);
+            sys_log!("resp: {:?}", resp);
+
+            let text: &[u8] = b"alfalfa\r\n";
+            let resp = uart.write(text);
+            sys_log!("resp: {:?}", resp);
+            //let resp = uart.write(text);
+            //sys_log!("resp: {:?}", resp);
+
+            loop {}
+            //let mut in_buffer = [0; 20];
+            //let resp= uart.read(&mut in_buffer);
 
             let _ = gpio.toggle(Port(1), Pin(10));
             let _ = gpio.toggle(Port(1), Pin(15));

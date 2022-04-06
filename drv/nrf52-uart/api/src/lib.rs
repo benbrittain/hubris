@@ -10,6 +10,7 @@ pub enum UartError {
     Success,
     Busy,
     BadArg,
+    Unrecoverable,
 }
 
 impl From<u32> for UartError {
