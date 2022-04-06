@@ -126,7 +126,6 @@ fn main() -> ! {
 }
 
 mod idl {
-    //    use drv_nrf52_gpio_common::*;
     use super::{GpioError, Mode, OutputType, Pin, Port, Pull};
     include!(concat!(env!("OUT_DIR"), "/server_stub.rs"));
 }

@@ -6,6 +6,7 @@
 #![no_main]
 
 use drv_nrf52_gpio_api::*;
+use drv_nrf52_uart_api::*;
 use userlib::*;
 
 task_slot!(GPIO, gpio);
@@ -17,7 +18,7 @@ fn main() -> ! {
     const INTERVAL: u64 = 500;
 
     let gpio = Gpio::from(GPIO.get_task_id());
-    let uart = UART.get_task_id();
+    let uart = Uart::from(UART.get_task_id());
 
     sys_log!("Hello from blinky");
 
@@ -50,8 +51,7 @@ fn main() -> ! {
             sys_set_timer(Some(dl), TIMER_NOTIFICATION);
 
             let text: &[u8] = b"test bwb!\r\n";
-            const OP_WRITE: u16 = 1;
-            let (code, _) = sys_send(uart, OP_WRITE, &[], &mut [], &[Lease::from(text)]);
+            let resp = uart.write(text);
 
             let _ = gpio.toggle(Port(1), Pin(10));
             let _ = gpio.toggle(Port(1), Pin(15));

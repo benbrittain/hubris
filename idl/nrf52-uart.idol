@@ -1,0 +1,25 @@
+// nRF52840 Uart w/ EasyDMA IPC API
+
+Interface(
+  name: "Uart",
+  ops: {
+        "configure": (
+            args: { },
+            reply: Result(
+                ok: "()",
+                err: CLike("UartError"),
+            ),
+            idempotent: true,
+        ),
+        "write": (
+            args: { },
+            leases: {
+                "buffer": (type: "[u8]", read: true),
+            },
+            reply: Result(
+                ok: "()",
+                err: CLike("UartError"),
+            ),
+        ),
+  }
+)

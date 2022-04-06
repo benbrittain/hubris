@@ -97,6 +97,7 @@ members = [
     "drv/lpc55-swd",
 
     "drv/nrf52-uart",
+    "drv/nrf52-uart/api",
 
     "drv/nrf52-gpio",
     "drv/nrf52-gpio/api",

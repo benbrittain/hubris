@@ -8,6 +8,8 @@
 #![no_main]
 
 use drv_nrf52_gpio_api::{self as gpio, Gpio};
+use drv_nrf52_uart_api::UartError;
+use idol_runtime::{NotificationHandler, RequestError};
 use nrf52840_pac::{self as device, uarte0};
 use userlib::*;
 use zerocopy::AsBytes;
@@ -30,6 +32,8 @@ struct Transmit {
     len: usize,
     pos: usize,
 }
+
+const UART_IRQ_MASK: u32 = 1;
 
 fn setup_uarte(
     uarte: &uarte0::RegisterBlock,
@@ -85,10 +89,62 @@ fn setup_uarte(
     uarte.events_endtx.write(|w| w.events_endtx().clear_bit());
 }
 
+struct UarteServer<'a> {
+    uarte: &'a device::uarte0::RegisterBlock,
+    current_txn: Option<Transmit>,
+}
+
+impl idl::PipelinedUartImpl for UarteServer<'_> {
+    fn configure(&mut self, _msg: &RecvMessage) {}
+
+    fn write(
+        &mut self,
+        msginfo: &RecvMessage,
+        buffer: idol_runtime::Leased<idol_runtime::R, [u8]>,
+    ) {
+        // Setup the state for the current transmission
+        self.current_txn = Some(Transmit {
+            task: msginfo.sender,
+            pos: 0,
+            len: buffer.len(),
+        });
+
+        // Set interest in the ENDRX/ENDTX interrupts which indicate the buffer is no longer
+        // being modified or read.
+        //
+        // TODO only set endtx() ?
+        self.uarte
+            .intenset
+            .modify(|_r, w| w.endrx().set().endtx().set());
+
+        // Start TX task.
+        self.uarte.tasks_starttx.write(|w| unsafe { w.bits(1) });
+    }
+}
+
+impl NotificationHandler for UarteServer<'_> {
+    fn current_notification_mask(&self) -> u32 {
+        UART_IRQ_MASK
+    }
+
+    fn handle_notification(&mut self, bits: u32) {
+        // When a UART interrupt is recieved, send bytes
+        // and rearm the irq
+        if bits & UART_IRQ_MASK != 0 {
+            if let Some(txn) = self.current_txn.as_mut() {
+                if transmit_bytes(&self.uarte, txn) {
+                    self.current_txn = None;
+                    stop_write(self.uarte);
+                }
+            }
+            sys_irq_control(UART_IRQ_MASK, true);
+        }
+    }
+}
+
 #[export_name = "main"]
 fn main() -> ! {
     let uarte = unsafe { &*device::UARTE0::ptr() };
-    let mut nvic = unsafe { &*cortex_m::peripheral::NVIC::ptr() };
 
     setup_uarte(
         uarte,
@@ -97,88 +153,16 @@ fn main() -> ! {
         (gpio::Port(0), gpio::Pin(24)),
     );
 
-    sys_irq_control(1, true);
+    let mut buffer = [0u8; idl::INCOMING_SIZE];
+    let mut server = UarteServer {
+        uarte,
+        current_txn: None,
+    };
 
-    let mask = 1;
-    let mut tx: Option<Transmit> = None;
+    sys_irq_control(UART_IRQ_MASK, true);
 
     loop {
-        let msginfo = sys_recv_open(&mut [], mask);
-        if msginfo.sender == TaskId::KERNEL {
-            if msginfo.operation & 1 != 0 {
-                if let Some(txn) = tx.as_mut() {
-                    if transmit_bytes(&uarte, txn) {
-                        tx = None;
-                        stop_write(uarte);
-                    }
-                }
-                sys_irq_control(1, true);
-            }
-        } else {
-            match msginfo.operation {
-                OP_WRITE => {
-                    // Deny incoming writes if we're already running one.
-                    if tx.is_some() {
-                        sys_reply(
-                            msginfo.sender,
-                            ResponseCode::Busy as u32,
-                            &[],
-                        );
-                        continue;
-                    }
-
-                    // Check the lease count and characteristics.
-                    if msginfo.lease_count != 1 {
-                        sys_reply(
-                            msginfo.sender,
-                            ResponseCode::BadArg as u32,
-                            &[],
-                        );
-                        continue;
-                    }
-
-                    let len = match sys_borrow_info(msginfo.sender, 0) {
-                        None => {
-                            sys_reply(
-                                msginfo.sender,
-                                ResponseCode::BadArg as u32,
-                                &[],
-                            );
-                            continue;
-                        }
-                        Some(info)
-                            if !info
-                                .attributes
-                                .contains(LeaseAttributes::READ) =>
-                        {
-                            sys_reply(
-                                msginfo.sender,
-                                ResponseCode::BadArg as u32,
-                                &[],
-                            );
-                            continue;
-                        }
-                        Some(info) => info.len,
-                    };
-
-                    tx = Some(Transmit {
-                        task: msginfo.sender,
-                        pos: 0,
-                        len,
-                    });
-
-                    // Set interest in the ENDRX/ENDTX interrupts which indicate the buffer is no longer
-                    // being modified or read.
-                    uarte
-                        .intenset
-                        .modify(|_r, w| w.endrx().set().endtx().set());
-
-                    // Start TX task.
-                    uarte.tasks_starttx.write(|w| unsafe { w.bits(1) });
-                }
-                _ => sys_reply(msginfo.sender, ResponseCode::BadOp as u32, &[]),
-            }
-        }
+        idol_runtime::dispatch_n(&mut buffer, &mut server);
     }
 }
 
@@ -223,4 +207,9 @@ fn transmit_bytes(
             false
         }
     }
+}
+
+mod idl {
+    use super::UartError;
+    include!(concat!(env!("OUT_DIR"), "/server_stub.rs"));
 }
