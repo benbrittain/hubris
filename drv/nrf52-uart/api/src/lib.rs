@@ -2,7 +2,6 @@
 
 #![no_std]
 
-// pub use drv_nrf52_gpio_common::*;
 use userlib::*;
 
 #[derive(Copy, Clone, Debug, FromPrimitive, PartialEq)]
@@ -11,6 +10,8 @@ pub enum UartError {
     Busy,
     BadArg,
     Unrecoverable,
+    Parity,
+    Framing,
 }
 
 impl From<u32> for UartError {

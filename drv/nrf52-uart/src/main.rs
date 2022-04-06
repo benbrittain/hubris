@@ -16,8 +16,14 @@ use zerocopy::AsBytes;
 
 task_slot!(GPIO, gpio);
 
-const BUFFER_SIZE: usize = 16;
-static mut TX_BUFFER: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+const TX_BUFFER_SIZE: usize = 16;
+static mut TX_BUFFER: [u8; TX_BUFFER_SIZE] = [0; TX_BUFFER_SIZE];
+
+const RX_BUFFER_SIZE: usize = 8;
+static mut RX_BUFFER: [u8; RX_BUFFER_SIZE] = [0; RX_BUFFER_SIZE];
+static mut RX_BUF_CNT: usize = 0;
+
+static mut RX_LOC: [u8; 1] = [0; 1];
 
 struct Transmit {
     task: TaskId,
@@ -78,9 +84,22 @@ fn setup_uarte(
     uarte.enable.write(|w| w.enable().enabled());
 
     // Clear ENDTX event.
-    uarte.events_endtx.write(|w| w.events_endtx().clear_bit());
-
+    uarte.events_endtx.reset();
     uarte.events_txstarted.reset();
+
+    // Point to RX buffer
+    uarte
+        .rxd
+        .ptr
+        .write(|w| unsafe { w.ptr().bits(RX_LOC.as_ptr() as u32) });
+
+    // TODO make much more than 1!
+    uarte.rxd.maxcnt.write(|w| unsafe { w.maxcnt().bits(1) });
+
+    // Interrupt whenever rx buffer is FULL
+    uarte.intenset.modify(|_r, w| w.endrx().set());
+    // Start RX task.
+    uarte.tasks_startrx.write(|w| unsafe { w.bits(1) });
 }
 
 struct UarteServer<'a> {
@@ -96,8 +115,21 @@ impl idl::PipelinedUartImpl for UarteServer<'_> {
     fn read(
         &mut self,
         msginfo: &RecvMessage,
+        offset_into_buffer: usize,
         buffer: idol_runtime::Leased<idol_runtime::W, [u8]>,
     ) {
+        unsafe {
+            // todo ring buffer this or something
+            let (rc, n) = sys_borrow_write(
+                msginfo.sender,
+                0,
+                offset_into_buffer,
+                &RX_BUFFER[0..RX_BUF_CNT],
+            );
+            RX_BUFFER = [0; RX_BUFFER_SIZE];
+            RX_BUF_CNT = 0;
+        }
+        sys_reply(msginfo.sender, UartError::Success as u32, &[]);
     }
 
     fn write(
@@ -146,8 +178,22 @@ impl NotificationHandler for UarteServer<'_> {
         sys_irq_control(UART_IRQ_MASK, true);
 
         if bits & UART_IRQ_MASK != 0 {
+            // remove?
             self.uarte.events_txdrdy.reset();
             self.uarte.events_txstarted.reset();
+
+            if self.uarte.events_endrx.read().events_endrx().bit() {
+                unsafe {
+                    // just drop anything over for now
+                    // the uart and hubris drivers better.
+                    if RX_BUF_CNT < RX_BUFFER.len() {
+                        RX_BUFFER[RX_BUF_CNT] = RX_LOC[0];
+                        RX_BUF_CNT += 1;
+                    }
+                    self.uarte.events_endrx.reset();
+                    self.uarte.tasks_startrx.write(|w| unsafe { w.bits(1) });
+                }
+            }
 
             // If the endtx is set, we can proceed with more bytes
             if self.uarte.events_endtx.read().events_endtx().bit() {

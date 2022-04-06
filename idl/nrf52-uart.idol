@@ -22,7 +22,9 @@ Interface(
             ),
         ),
         "read": (
-            args: { },
+            args: {
+                "offset_into_buffer": "usize",
+            },
             leases: {
                 "buffer": (type: "[u8]", write: true),
             },
