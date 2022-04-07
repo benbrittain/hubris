@@ -9,17 +9,13 @@ use drv_nrf52_gpio_api::*;
 use userlib::*;
 
 task_slot!(GPIO, gpio);
-task_slot!(UART, uart);
 
 #[export_name = "main"]
 fn main() -> ! {
     const TIMER_NOTIFICATION: u32 = 1;
-    const INTERVAL: u64 = 500;
+    const INTERVAL: u64 = 1000;
 
     let gpio = Gpio::from(GPIO.get_task_id());
-
-    sys_log!("Hello from blinky");
-
 
     let _ = gpio.configure(
         Port(1),
@@ -47,7 +43,6 @@ fn main() -> ! {
         if msginfo.sender == TaskId::KERNEL {
             dl += INTERVAL;
             sys_set_timer(Some(dl), TIMER_NOTIFICATION);
-
 
             let _ = gpio.toggle(Port(1), Pin(10));
             let _ = gpio.toggle(Port(1), Pin(15));

@@ -19,7 +19,7 @@ task_slot!(GPIO, gpio);
 const TX_BUFFER_SIZE: usize = 16;
 static mut TX_BUFFER: [u8; TX_BUFFER_SIZE] = [0; TX_BUFFER_SIZE];
 
-const RX_BUFFER_SIZE: usize = 8;
+const RX_BUFFER_SIZE: usize = 128;
 static mut RX_BUFFER: [u8; RX_BUFFER_SIZE] = [0; RX_BUFFER_SIZE];
 static mut RX_BUF_CNT: usize = 0;
 
@@ -119,6 +119,7 @@ impl idl::PipelinedUartImpl for UarteServer<'_> {
         buffer: idol_runtime::Leased<idol_runtime::W, [u8]>,
     ) {
         unsafe {
+            let buf_cnt = RX_BUF_CNT;
             // todo ring buffer this or something
             let (rc, n) = sys_borrow_write(
                 msginfo.sender,
@@ -128,8 +129,12 @@ impl idl::PipelinedUartImpl for UarteServer<'_> {
             );
             RX_BUFFER = [0; RX_BUFFER_SIZE];
             RX_BUF_CNT = 0;
+            sys_reply(
+                msginfo.sender,
+                UartError::Success as u32,
+                zerocopy::AsBytes::as_bytes(&buf_cnt),
+            );
         }
-        sys_reply(msginfo.sender, UartError::Success as u32, &[]);
     }
 
     fn write(
@@ -189,6 +194,8 @@ impl NotificationHandler for UarteServer<'_> {
                     if RX_BUF_CNT < RX_BUFFER.len() {
                         RX_BUFFER[RX_BUF_CNT] = RX_LOC[0];
                         RX_BUF_CNT += 1;
+                    } else {
+                        sys_log!("dropped bytes!");
                     }
                     self.uarte.events_endrx.reset();
                     self.uarte.tasks_startrx.write(|w| unsafe { w.bits(1) });

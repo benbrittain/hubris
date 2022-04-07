@@ -41,6 +41,7 @@ members = [
     "task/template",
 
     "task/blinky",
+    "task/air-quality",
 
     "task/jefe",
     "task/ping",
@@ -61,6 +62,8 @@ members = [
     "task/validate",
     "task/validate-api",
     "task/vsc7448",
+
+    "drv/sensirion-sps32",
 
     "drv/stm32fx-rcc",
     "drv/stm32fx-usart",

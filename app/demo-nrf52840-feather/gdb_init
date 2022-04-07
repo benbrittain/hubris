@@ -7,4 +7,4 @@ load
 monitor semihosting enable
 # monitor SWO EnableTarget 0 0 1 0
 
-break task_blinky::main
+# break task_blinky::main

@@ -29,7 +29,7 @@ Interface(
                 "buffer": (type: "[u8]", write: true),
             },
             reply: Result(
-                ok: "()",
+                ok: "usize",
                 err: CLike("UartError"),
             ),
         ),

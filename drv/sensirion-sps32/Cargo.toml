@@ -1,0 +1,10 @@
+[package]
+name = "drv-sensirion-sps32"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+drv-nrf52-uart-api = {path = "../../drv/nrf52-uart/api"}
+userlib = {path = "../../sys/userlib", features = ["log-semihosting"]}
+arrayvec = {version = "*", default-features = false }
+sensirion-hdlc = {path = "../../../sensirion-hdlc/"}

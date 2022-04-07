@@ -8,7 +8,7 @@ stacksize = 896
 path = "."
 name = "demo-nrf52840-feather"
 requires = {flash = 60000, ram = 3072}
-features = ["semihosting"]
+features = ["semihosting", "panic-semihosting"]
 
 [supervisor]
 notification = 1
@@ -72,8 +72,18 @@ interrupts = {"uarte0.irq" = 1}
 [tasks.blinky]
 path = "../../task/blinky"
 name = "task-blinky"
-priority = 3
+priority = 4
 requires = {flash = 32768, ram = 2048}
 start = true
 features = ["semihosting"]
-task-slots = ["gpio", "uart"]
+task-slots = ["gpio"]
+
+[tasks.air_quality]
+path = "../../task/air-quality/"
+name = "task-air-quality"
+priority = 3
+requires = {flash = 65536, ram = 16384 }
+start = true
+features = ["semihosting"]
+task-slots = ["uart"]
+stacksize = 8192
