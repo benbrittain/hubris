@@ -1130,7 +1130,7 @@ version = "0.1.0"
 dependencies = [
  "cfg-if 1.0.0",
  "cortex-m",
- "smoltcp",
+ "smoltcp 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "stm32h7",
  "userlib",
 ]
@@ -1968,6 +1968,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nrf52-radio"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-semihosting",
+ "log",
+ "nrf52840-pac",
+ "smoltcp 0.8.0",
+ "task-aether-api",
+ "userlib",
+]
+
+[[package]]
 name = "nrf52840-pac"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2734,6 +2747,17 @@ checksum = "1ecab6c735a6bb4139c0caafd0cc3635748bbb3acf4550e8138122099251f309"
 [[package]]
 name = "smoltcp"
 version = "0.8.0"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "cfg-if 1.0.0",
+ "log",
+ "managed",
+]
+
+[[package]]
+name = "smoltcp"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2308a1657c8db1f5b4993bab4e620bdbe5623bd81f254cf60326767bb243237"
 dependencies = [
@@ -2935,6 +2959,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
+name = "task-aether-api"
+version = "0.1.0"
+dependencies = [
+ "derive-idol-err",
+ "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "num-traits",
+ "serde",
+ "smoltcp 0.8.0",
+ "ssmarshal",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "task-air-quality"
 version = "0.1.0"
 dependencies = [
@@ -3043,7 +3081,7 @@ dependencies = [
  "quote",
  "ringbuf",
  "serde",
- "smoltcp",
+ "smoltcp 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ssmarshal",
  "stm32h7",
  "syn",
@@ -3063,7 +3101,7 @@ dependencies = [
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
  "serde",
- "smoltcp",
+ "smoltcp 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ssmarshal",
  "userlib",
  "zerocopy",

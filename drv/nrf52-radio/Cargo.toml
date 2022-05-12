@@ -1,0 +1,26 @@
+[package]
+name = "nrf52-radio"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+userlib = { path = "../../sys/userlib", default-features = false}
+nrf52840-pac = "*"
+cortex-m = "*"
+cortex-m-semihosting = {version = "*", optional = true}
+log = "*"
+task-aether-api = {path = "../../task/aether/api"}
+
+[features]
+itm = [ "userlib/log-itm" ]
+semihosting = [ "userlib/log-semihosting", "cortex-m-semihosting"]
+log-null = ["userlib/log-null"]
+
+[dependencies.smoltcp]
+path = "../../../smoltcp/"
+default-features = false
+features = [
+  "verbose", "log", "proto-sixlowpan", "socket-udp", "medium-ieee802154"
+]
+
