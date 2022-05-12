@@ -42,6 +42,8 @@ members = [
 
     "task/blinky",
     "task/air-quality",
+    "task/aether",
+    "task/aether/api",
 
     "task/jefe",
     "task/ping",

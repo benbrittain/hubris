@@ -1,0 +1,50 @@
+// IPv6 over the aether, I mean, a 802.11.4 Low-Power Wireless Personal Area Network
+
+Interface(
+    name: "Aether",
+    ops: {
+        "recv_packet": (
+            encoding: Ssmarshal,
+            doc: "Unqueues an incoming packet from a socket.",
+            args: {
+            },
+            leases: {
+                "payload": (type: "[u8]", write: true),
+            },
+            reply: Result(
+                ok: "UdpMetadata",
+                err: CLike("AetherError"),
+            ),
+        ),
+        "send_packet": (
+            encoding: Ssmarshal,
+            doc: "Queues an outgoing packet into a socket.",
+            args: {
+                "metadata": "UdpMetadata",
+            },
+            leases: {
+                "payload": (type: "[u8]", read: true),
+            },
+            reply: Result(
+                ok: "()",
+                err: CLike("AetherError"),
+            ),
+        ),
+        "get_rssi": (
+            doc: "Sample the received signal power",
+            args: { },
+            reply: Result(
+                ok: "()",
+                err: CLike("AetherError"),
+            ),
+        ),
+        "get_addr": (
+            doc: "Get Device local IP address",
+            args: { },
+            reply: Result(
+                ok: "Ipv6Address",
+                err: CLike("AetherError"),
+            ),
+        ),
+    },
+)
