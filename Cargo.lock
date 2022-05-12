@@ -2959,6 +2959,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
+name = "task-aether"
+version = "0.1.0"
+dependencies = [
+ "build-util",
+ "cortex-m",
+ "cortex-m-semihosting",
+ "hubris-num-tasks",
+ "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "log",
+ "nrf52-radio",
+ "nrf52840-pac",
+ "num-traits",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "smoltcp 0.8.0",
+ "ssmarshal",
+ "syn",
+ "task-aether-api",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "task-aether-api"
 version = "0.1.0"
 dependencies = [
@@ -2970,6 +2995,19 @@ dependencies = [
  "ssmarshal",
  "userlib",
  "zerocopy",
+]
+
+[[package]]
+name = "task-aetherping"
+version = "0.1.0"
+dependencies = [
+ "cortex-m-semihosting",
+ "num-traits",
+ "serde",
+ "smoltcp 0.8.0",
+ "ssmarshal",
+ "task-aether-api",
+ "userlib",
 ]
 
 [[package]]

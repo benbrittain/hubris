@@ -7,8 +7,11 @@ stacksize = 896
 [kernel]
 path = "."
 name = "demo-nrf52840-feather"
-requires = {flash = 60000, ram = 3072}
-features = ["semihosting", "panic-semihosting"]
+requires = {flash = 32768, ram = 3072}
+#features = ["semihosting" , "panic-semihosting"]
+features = ["itm"]
+# features = ["log-itm"]
+# features = ["semihosting" ] , "panic-semihosting"]
 
 [supervisor]
 notification = 1
@@ -38,16 +41,16 @@ start = true
 path = "../../task/jefe"
 name = "task-jefe"
 priority = 0
-requires = {flash = 16384, ram = 2048}
+requires = {flash = 8192, ram = 2048}
 start = true
-features = ["semihosting"]
+features = ["log-null"]
 stacksize = 1536
 
 [tasks.hiffy]
 path = "../../task/hiffy"
 name = "task-hiffy"
 priority = 3
-requires = {flash = 16384, ram = 16384 }
+requires = {flash = 8192, ram = 16384 }
 stacksize = 2048
 start = true
 
@@ -55,7 +58,7 @@ start = true
 path = "../../drv/nrf52-gpio/"
 name = "drv-nrf52840-gpio"
 priority = 2
-requires = {flash = 8192, ram = 2048}
+requires = {flash = 1024, ram = 1024}
 start = true
 uses = ["gpio0"]
 
@@ -63,27 +66,78 @@ uses = ["gpio0"]
 path = "../../drv/nrf52-uart/"
 name = "drv-nrf52-uart"
 priority = 2
-requires = {flash = 32768, ram = 2048}
+requires = {flash = 8192, ram = 2048}
 start = true
 task-slots = ["gpio"]
 uses = ["uarte0"]
 interrupts = {"uarte0.irq" = 1}
 
+[tasks.aether]
+path = "../../task/aether"
+name = "task-aether"
+priority = 1
+requires = {flash = 131072, ram = 32768 }
+stacksize = 16384
+start = true
+features = ["semihosting"]
+#features = ["log-null"]
+uses = ["radio", "ficr", "rng", "clock"]
+interrupts = { "radio.irq" = 1 }
+
+[tasks.aetherping]
+path = "../../task/aetherping"
+name = "task-aetherping"
+features = ["semihosting"]
+#features = ["log-null"]
+priority = 4
+requires = {flash = 16384, ram = 4096}
+start = true
+task-slots = ["aether"]
+stacksize = 2048
+
 [tasks.blinky]
 path = "../../task/blinky"
 name = "task-blinky"
 priority = 4
-requires = {flash = 32768, ram = 2048}
+requires = {flash = 16384, ram = 1024}
 start = true
-features = ["semihosting"]
-task-slots = ["gpio"]
+# features = ["semihosting"]
+task-slots = ["gpio", "aether"]
 
-[tasks.air_quality]
-path = "../../task/air-quality/"
-name = "task-air-quality"
-priority = 3
-requires = {flash = 65536, ram = 16384 }
-start = true
-features = ["semihosting"]
-task-slots = ["uart"]
-stacksize = 8192
+
+
+[config.aether]
+pan_id = 0x1eaf
+
+[config.aether.sockets.ping]
+kind = "udp"
+owner = { name = "aetherping", notification = 5 }
+port = 8
+tx = { packets = 3, bytes = 1024 }
+rx = { packets = 3, bytes = 1024 }
+
+#
+#interrupts = {"rtc2.irq" = 3 }
+#uses = ["rtc2", "clock"]
+
+# [tasks.air_quality]
+# path = "../../task/air-quality/"
+# name = "task-air-quality"
+# priority = 3
+# requires = {flash = 32768, ram = 16384 }
+# start = true
+# features = ["semihosting"]
+# task-slots = ["uart"]
+# stacksize = 8192
+
+# [tasks.thread]
+# path = "../../task/thread/"
+# name = "task-thread"
+# priority = 2
+# requires = {flash = 262144, ram = 32768 }
+# start = true
+# features = ["semihosting"]
+# stacksize = 8192
+# uses = ["radio", "rng", "rtc2", "clock"]
+# task-slots = ["uart"]
+# interrupts = {"rng.irq" = 1, "radio.irq" = 2, "rtc2.irq" = 3 }
