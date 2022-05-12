@@ -2,7 +2,7 @@ use idol_runtime::{ClientError, Leased, NotificationHandler, RequestError};
 use smoltcp::iface::{Interface, SocketHandle};
 use smoltcp::socket::UdpSocket;
 
-use task_aether_api::{AetherError, UdpMetadata, Ipv6Address};
+use task_aether_api::{AetherError, Ipv6Address, SocketName, UdpMetadata};
 use userlib::*;
 
 use crate::RADIO_IRQ;
@@ -11,13 +11,13 @@ use crate::RADIO_IRQ;
 pub const INCOMING_SIZE: usize = idl::INCOMING_SIZE;
 
 pub struct AetherServer<'a> {
-    socket_handles: [SocketHandle; crate::SOCKET_COUNT],
+    socket_handles: [SocketHandle; crate::generated::SOCKET_COUNT],
     iface: Interface<'a, nrf52_radio::Radio<'a>>,
 }
 
 impl<'a> AetherServer<'a> {
     pub fn new(
-        socket_handles: [SocketHandle; crate::SOCKET_COUNT],
+        socket_handles: [SocketHandle; crate::generated::SOCKET_COUNT],
         iface: Interface<'a, nrf52_radio::Radio<'a>>,
     ) -> Self {
         Self {
@@ -57,10 +57,16 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
     fn recv_packet(
         &mut self,
         msg: &userlib::RecvMessage,
+        socket: SocketName,
         payload: Leased<idol_runtime::W, [u8]>,
     ) -> Result<UdpMetadata, RequestError<AetherError>> {
-        // TODO this has to change when we support multiple clients!!
-        let socket_index = 0;
+        let socket_index = socket as usize;
+
+        if crate::generated::SOCKET_OWNERS[socket_index].0.index()
+            != msg.sender.index()
+        {
+            return Err(AetherError::WrongOwner.into());
+        }
 
         let socket = self.get_socket_mut(socket_index)?;
         match socket.recv() {
@@ -81,19 +87,24 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
             Err(smoltcp::Error::Exhausted) => {
                 Err(AetherError::QueueEmpty.into())
             }
-            e => panic!("recv_packet error = {:?}", e),
+            e => Err(AetherError::Unknown.into()),
         }
     }
 
     fn send_packet(
         &mut self,
         msg: &userlib::RecvMessage,
+        socket: SocketName,
         metadata: UdpMetadata,
         payload: Leased<idol_runtime::R, [u8]>,
     ) -> Result<(), RequestError<AetherError>> {
-        let socket_index = 0;
-        let socket = self.get_socket_mut(socket_index)?;
-        userlib::sys_log!("{:?}", socket.endpoint());
+        if crate::generated::SOCKET_OWNERS[socket as usize].0.index()
+            != msg.sender.index()
+        {
+            return Err(AetherError::WrongOwner.into());
+        }
+
+        let socket = self.get_socket_mut(socket as usize)?;
 
         match socket.send(payload.len(), metadata.into()) {
             Ok(buf) => {
@@ -102,6 +113,9 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
                     .map_err(|_| RequestError::went_away())?;
                 Ok(())
             }
+            Err(smoltcp::Error::Exhausted) => {
+                Err(AetherError::NoTransmitSlot.into())
+            }
             e => panic!("couldn't send packet {:?}", e),
         }
     }
@@ -109,7 +123,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
     fn get_addr(
         &mut self,
         msg: &userlib::RecvMessage,
-    ) -> Result<Ipv6Address, idol_runtime::RequestError<AetherError>>{
+    ) -> Result<Ipv6Address, idol_runtime::RequestError<AetherError>> {
         Ok(self.iface.device_mut().get_ieee_uei_64())
     }
 
@@ -135,6 +149,6 @@ impl NotificationHandler for AetherServer<'_> {
     }
 }
 mod idl {
-    use task_aether_api::{AetherError, UdpMetadata, Ipv6Address};
+    use task_aether_api::{AetherError, Ipv6Address, SocketName, UdpMetadata};
     include!(concat!(env!("OUT_DIR"), "/server_stub.rs"));
 }

@@ -19,23 +19,8 @@ use smoltcp::{
 
 mod server;
 
-static mut UDP_BUFFER_TX: [UdpPacketMetadata; 8] =
-    [UdpPacketMetadata::EMPTY; 8];
-static mut UDP_BUFFER_TX2: [u8; 64] = [0; 64];
-static mut UDP_BUFFER_RX: [UdpPacketMetadata; 8] =
-    [UdpPacketMetadata::EMPTY; 8];
-static mut UDP_BUFFER_RX2: [u8; 128] = [0; 128];
-
-/// 802.15.4 PAN ID
-const PAN_ID: u16 = 0x1eaf; // leaf
-
 /// Number of entries to maintain in our neighbor cache (ARP/NDP).
 const NEIGHBORS: usize = 4;
-
-/// Number of sockets to support
-/// TODO if I want to increase this, I need to manage the udp_handle properly
-/// instead of just using static muts for udp buffers
-const SOCKET_COUNT: usize = 1;
 
 /// Notification mask for our IRQ; must match configuration in app.toml.
 const RADIO_IRQ: u32 = 1;
@@ -77,7 +62,7 @@ fn main() -> ! {
         [None; NEIGHBORS];
     let neighbor_cache = NeighborCache::new(&mut neighbor_cache_storage[..]);
 
-    let mut packet_buf = [0u8, 127];
+    let mut packet_buf: [u8; 127] = [0; 127];
     let mut packet_assembler_cache =
         [PacketAssembler::<'_>::new(&mut packet_buf[..])];
     let mut packet_index_cache: [Option<(SixlowpanFragKey, usize)>; 1] = [None];
@@ -86,7 +71,7 @@ fn main() -> ! {
         &mut packet_index_cache[..],
     );
 
-    let mut cache_buf = [0u8, 127];
+    let mut cache_buf: [u8; 127] = [0; 127];
     let mut out_fragments_cache = [(0usize, (&mut cache_buf[..]).into())];
 
     let mut sockets: [_; generated::SOCKET_COUNT] = Default::default();
@@ -108,6 +93,7 @@ fn main() -> ! {
 
     // Bind sockets to their ports.
     for (&h, &port) in socket_handles.iter().zip(&generated::SOCKET_PORTS) {
+        sys_log!("binding {:?} to port {:?}", ipv6_addr, port);
         iface
             .get_socket::<UdpSocket>(h)
             .bind((ipv6_addr, port))
@@ -127,8 +113,7 @@ fn main() -> ! {
         let activity = poll_result.unwrap_or(true);
 
         if activity {
-            // TODO wake up any clients that have a closed recv on this server
-            for i in 0..crate::SOCKET_COUNT {
+            for i in 0..generated::SOCKET_COUNT {
                 // TODO check if there is a packet on the port
                 if server.get_socket_mut(i).is_ok() {
                     let (task_id, notification) = generated::SOCKET_OWNERS[i];
@@ -136,6 +121,7 @@ fn main() -> ! {
                     userlib::sys_post(task_id, notification);
                 }
             }
+            // TODO poll at timing perhaps?
         } else {
             let mut msgbuf = [0u8; server::INCOMING_SIZE];
             idol_runtime::dispatch_n(&mut msgbuf, &mut server);

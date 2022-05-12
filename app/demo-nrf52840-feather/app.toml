@@ -90,7 +90,7 @@ name = "task-aetherping"
 features = ["semihosting"]
 #features = ["log-null"]
 priority = 4
-requires = {flash = 16384, ram = 4096}
+requires = {flash = 32768, ram = 4096}
 start = true
 task-slots = ["aether"]
 stacksize = 2048

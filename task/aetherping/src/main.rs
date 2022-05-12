@@ -17,7 +17,7 @@ fn main() -> ! {
     sys_log!("starting aetherping");
     let tx = [0xBB, 0xBB, 0xBB];
 
-    let _meta = UdpMetadata {
+    let meta = UdpMetadata {
         // IPv6 multicast address for "all routers"
         addr: Address::Ipv6(Ipv6Address([
             0xff, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
@@ -31,12 +31,12 @@ fn main() -> ! {
 
     let mut rx_data_buf = [0u8; 128];
     loop {
-        // sys_log!("SEND");
-        // net.send_packet(meta, &tx[..]);
-        // hl::sleep_for(4000);
+        //sys_log!("SEND");
+        //net.send_packet(SocketName::ping, meta, &tx[..]);
+        //hl::sleep_for(4000);
 
         sys_log!("RECV");
-        match net.recv_packet(&mut rx_data_buf) {
+        match net.recv_packet(SocketName::ping, &mut rx_data_buf) {
             Ok(meta) => {
                 sys_log!("{:?}", &rx_data_buf[..meta.payload_len as usize]);
             }
@@ -44,6 +44,7 @@ fn main() -> ! {
                 // Our incoming queue is empty. Wait for more packets.
                 sys_recv_closed(&mut [], 5, TaskId::KERNEL).unwrap();
             }
+            _ => panic!("oh no!"),
         }
     }
 }

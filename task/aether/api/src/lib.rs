@@ -69,7 +69,15 @@ impl From<Ipv6Address> for smoltcp::wire::Ipv6Address {
 #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, IdolError)]
 #[repr(u32)]
 pub enum AetherError {
+    /// No Packets to recieve. Will not wake task until there is a packet
     QueueEmpty = 1,
+    /// No space in the transmit buffer
+    NoTransmitSlot = 2,
+    /// This socket is owned by a different task (check app.toml)
+    WrongOwner = 3,
+    /// Unknown Error from smoltcp socket.
+    Unknown = 4,
 }
 
 include!(concat!(env!("OUT_DIR"), "/client_stub.rs"));
+include!(concat!(env!("OUT_DIR"), "/aether_config.rs"));

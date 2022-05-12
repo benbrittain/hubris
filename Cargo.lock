@@ -2987,12 +2987,17 @@ dependencies = [
 name = "task-aether-api"
 version = "0.1.0"
 dependencies = [
+ "build-util",
  "derive-idol-err",
+ "hubris-num-tasks",
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
+ "proc-macro2",
+ "quote",
  "serde",
  "smoltcp 0.8.0",
  "ssmarshal",
+ "syn",
  "userlib",
  "zerocopy",
 ]
