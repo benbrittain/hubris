@@ -137,15 +137,7 @@ impl Radio<'_> {
     /// Point the EasyDMA engine at a valid memory region
     /// for receptionand transmission of packets.
     fn configure_packet_buffer(&self, buf: &PacketBuffer) {
-        let buffer_ptr = buf.data.get() as *mut _ as u32;
-        // TODO consider doing some verification here
-        // since unlike many pac unsafe usages, this is actually
-        // very unsafe.
-        unsafe {
-            self.radio
-                .packetptr
-                .write(|w| w.packetptr().bits(buffer_ptr));
-        }
+        buf.set_as_buffer(&self);
     }
 
     /// IEEE 802.15.4 implements a listen-before-talk channel access method

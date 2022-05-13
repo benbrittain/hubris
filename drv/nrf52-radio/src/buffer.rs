@@ -1,8 +1,8 @@
-use nrf52840_pac as device;
 use core::{
-    cell::{UnsafeCell, Cell},
-    sync::atomic::{AtomicUsize, AtomicBool, Ordering},
+    cell::{Cell, UnsafeCell},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
+use nrf52840_pac as device;
 use userlib::sys_log;
 
 pub struct PacketBuffer {
@@ -18,17 +18,30 @@ impl PacketBuffer {
         }
     }
 
-     pub fn read<R>(&self, func: impl FnOnce(&mut [u8]) -> R) -> Option<R> {
-         let mut buf = unsafe { (*self.data.get()) };
-         let idx = self.completed.fetch_sub(1, Ordering::Relaxed);
-         if idx > 1 {
-             panic!("{} packets dropped!", idx - 1);
-         }
-         let len = buf[0] as usize;
-         let resp = func(&mut buf[1..len-1]);
-//         sys_log!("READ - {} | {:02X?}", len, &buf[1..len+1]);
-         Some(resp)
-     }
+    pub fn read<R>(&self, func: impl FnOnce(&mut [u8]) -> R) -> Option<R> {
+        let mut buf = unsafe { (*self.data.get()) };
+        let idx = self.completed.fetch_sub(1, Ordering::Relaxed);
+        if idx > 1 {
+            panic!("{} packets dropped!", idx - 1);
+        }
+        let len = buf[0] as usize;
+        let resp = func(&mut buf[1..len - 1]);
+        //         sys_log!("READ - {} | {:02X?}", len, &buf[1..len+1]);
+        Some(resp)
+    }
+
+    pub fn set_as_buffer(&self, radio: &crate::Radio) {
+        let buffer_ptr = self.data.get() as *mut _ as u32;
+        // TODO consider doing some verification here
+        // since unlike many pac unsafe usages, this is actually
+        // very unsafe.
+        unsafe {
+            radio
+                .radio
+                .packetptr
+                .write(|w| w.packetptr().bits(buffer_ptr));
+        }
+    }
 
     pub fn write<R>(
         &self,
@@ -39,7 +52,7 @@ impl PacketBuffer {
         let resp = func(&mut buf[1..len + 1]);
         // set the phdr
         buf[0] = len as u8 + 2;
-        sys_log!("WRITE - {} | {:02X?}", len, &buf[1..len+1]);
+        sys_log!("WRITE - {} | {:02X?}", len, &buf[1..len + 1]);
         Some(resp)
     }
 }
