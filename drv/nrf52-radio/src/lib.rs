@@ -17,7 +17,10 @@ use smoltcp::{
 use task_aether_api::*;
 use userlib::sys_log;
 
+mod buffer;
 mod phy;
+
+use buffer::PacketBuffer;
 
 /// Mask of known bytes in ACK packet
 pub const MHMU_MASK: u32 = 0xff000700;
@@ -68,48 +71,7 @@ enum RadioState {
     TxDisable,
 }
 
-pub struct PacketBuffer {
-    data: UnsafeCell<[u8; 128]>,
-    completed: AtomicUsize,
-}
-
-impl PacketBuffer {
-    pub const fn new() -> Self {
-        Self {
-            data: UnsafeCell::new([0; 128]),
-            completed: AtomicUsize::new(0),
-        }
-    }
-
-     pub fn read<R>(&self, func: impl FnOnce(&mut [u8]) -> R) -> Option<R> {
-         let mut buf = unsafe { (*self.data.get()) };
-         let idx = self.completed.fetch_sub(1, Ordering::Relaxed);
-         if idx > 1 {
-             panic!("{} packets dropped!", idx - 1);
-         }
-         let len = buf[0] as usize;
-         let resp = func(&mut buf[1..len-1]);
-//         sys_log!("READ"); // - {} | {:02X?}", len, &buf[1..len+1]);
-//         sys_log!("READ - {} | {:02X?}", len, &buf[1..len+1]);
-         Some(resp)
-     }
-
-    pub fn write<R>(
-        &self,
-        func: impl FnOnce(&mut [u8]) -> R,
-        len: usize,
-    ) -> Option<R> {
-        let mut buf = unsafe { &mut *self.data.get() };
-        let resp = func(&mut buf[1..len + 1]);
-        // set the phdr
-        buf[0] = len as u8 + 2;
-        sys_log!("WRITE - {} | {:02X?}", len, &buf[1..len+1]);
-        Some(resp)
-    }
-}
-
-pub const INVALID_POWER: i8 = 0x7f;
-
+/// Interface to the radio peripheral.
 pub struct Radio<'a> {
     radio: &'a device::radio::RegisterBlock,
     transmit_buffer: PacketBuffer,
@@ -136,12 +98,18 @@ impl Radio<'_> {
 
     fn enable_interrupts(&self) {
         self.radio.intenset.write(|w| {
-            w.ready().set_bit()
-                .ready().set_bit()
-                .ccaidle().set_bit()
-                .ccabusy().set_bit()
-                .end().set_bit()
-                .framestart().set_bit()
+            w.ready()
+                .set_bit()
+                .ready()
+                .set_bit()
+                .ccaidle()
+                .set_bit()
+                .ccabusy()
+                .set_bit()
+                .end()
+                .set_bit()
+                .framestart()
+                .set_bit()
         });
     }
 
@@ -261,7 +229,6 @@ impl Radio<'_> {
         // Disable MAC header matching
         // radio.mhrmatchconf.write(|w| unsafe { w.bits(0) });
         // radio.mhrmatchmas.write(|w| unsafe { w.bits(MHMU_MASK) });
-
 
         // Start receiving...
         self.start_recv();
@@ -392,17 +359,15 @@ impl Radio<'_> {
     }
 
     fn unknown_transition(&self, x: u32) {
-        panic!("ERROR@{} - Unknown transition for {:?} | {:?}", x, self.get_driver_state(), self.get_state());
-
+        panic!(
+            "ERROR@{} - Unknown transition for {:?} | {:?}",
+            x,
+            self.get_driver_state(),
+            self.get_state()
+        );
     }
     pub fn handle_interrupt(&mut self) {
         self.disable_interrupts();
-
-        //sys_log!(
-        //    "HI - state: {:?} | mode: {:?}",
-        //    self.radio.state.read().state().variant(),
-        //    self.get_driver_state(),
-        //);
 
         if self
             .radio
@@ -430,48 +395,29 @@ impl Radio<'_> {
 
         if self.radio.events_ready.read().events_ready().bit_is_set() {
             // this should always be triggered in conjunction with
-           // a tx/rx event ready state
-            sys_log!("IRQ - RADIO has ramped up and is ready to be started {:?}", self.get_state());
+            // a tx/rx event ready state
+            sys_log!(
+                "IRQ - RADIO has ramped up and is ready to be started {:?}",
+                self.get_state()
+            );
             self.radio.events_ready.reset();
             // if not transmitting
             match self.get_driver_state() {
                 DriverState::Rx => {
                     self.radio.tasks_start.write(|w| w.tasks_start().set_bit());
-                },
+                }
                 DriverState::Tx => {
                     assert!(self.get_state() == RadioState::TxIdle);
                     self.radio.tasks_start.write(|w| w.tasks_start().set_bit());
-                },
+                }
                 DriverState::CcaTx => {
-                    self.radio.tasks_ccastart.write(|w| w.tasks_ccastart().set_bit());
+                    self.radio
+                        .tasks_ccastart
+                        .write(|w| w.tasks_ccastart().set_bit());
                 }
                 state => self.unknown_transition(line!()),
             }
         }
-
-        // //
-        // // =========== Reception events ===========
-        // //
-        // if self
-        //     .radio
-        //     .events_rxready
-        //     .read()
-        //     .events_rxready()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - RADIO has ramped up and is ready to be started RX path");
-        //     self.radio.events_rxready.reset();
-        //     match self.get_driver_state() {
-        //         DriverState::CcaTx => {
-        //             // we might have events queued from the rx time
-        //         }
-        //         DriverState::Rx => {
-        //             sys_log!("Starting RX! {:?}", self.get_state());
-        //             self.radio.tasks_start.write(|w| w.tasks_start().set_bit());
-        //         }
-        //         c => panic!("unknown command {:?} for this event", c),
-        //     }
-        // }
 
         if self
             .radio
@@ -484,145 +430,44 @@ impl Radio<'_> {
             self.radio.events_framestart.reset();
         }
 
-        // //
-        // // =========== Transmission events ===========
-        // //
-        // if self
-        //     .radio
-        //     .events_txready
-        //     .read()
-        //     .events_txready()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - IO has ramped");
-        //     self.radio.events_txready.reset();
-        //     match self.get_driver_state() {
-        //         DriverState::Tx => {
-        //             self.radio.tasks_start.write(|w| w.tasks_start().set_bit());
-        //         }
-        //         c => panic!("unknown command {:?} for this event", c),
-        //     }
-        // }
+        if self.radio.events_end.read().events_end().bit_is_set() {
+            sys_log!("IRQ - Packet sent or received");
+            self.radio.events_end.reset();
 
-        // if self
-        //     .radio
-        //     .events_address
-        //     .read()
-        //     .events_address()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - Address sent or received");
-        //     self.radio.events_address.reset();
-        // }
+            match self.get_state() {
+                RadioState::RxIdle => {
+                    if self.radio.crcstatus.read().crcstatus().is_crcok() {
+                        let buf: &[u8] =
+                            unsafe { &*self.receive_buffer.data.get() };
+                        sys_log!("CRC: OK!");
 
-        // if self
-        //     .radio
-        //     .events_bcmatch
-        //     .read()
-        //     .events_bcmatch()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - Bit counter reached bit count value");
-        //     self.radio.events_bcmatch.reset();
-        // }
-        //     .radio
-        //     .events_ccastopped
-        //     .read()
-        //     .events_ccastopped()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - The CCA has stopped");
-        //     self.radio.events_ccastopped.reset();
-        // }
-        // if self
-        //     .radio
-        //     .events_crcerror
-        //     .read()
-        //     .events_crcerror()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - Packet received with CRC error");
-        //     self.radio.events_crcerror.reset();
-        // }
-        // if self
-        //     .radio
-        //     .events_devmatch
-        //     .read()
-        //     .events_devmatch()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - A device address match occurred on the last received packet");
-        //     self.radio.events_devmatch.reset();
-        // }
-        // if self
-        //     .radio
-        //     .events_devmiss
-        //     .read()
-        //     .events_devmiss()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - No device address match occurred on the last received packet");
-        //     self.radio.events_devmiss.reset();
-        // }
+                        let mut buf =
+                            unsafe { (*self.receive_buffer.data.get()) };
+                        let len = buf[0] as usize;
+                        if len > 0 {
+                            self.receive_buffer
+                                .completed
+                                .fetch_add(1, Ordering::Relaxed);
+                            // sys_log!("buf: {:02X?}", &buf[..len]);
+                        }
+                    } else {
+                        sys_log!("CRC: BAD!");
+                    }
+                }
+                RadioState::TxIdle => {
+                    // transition back to Rx
+                    self.set_mode(DriverState::Rx);
+                }
+                s => {
+                    panic!("Don't know how to handle {:?} during event end", s)
+                }
+            }
+            // TODO Don't do a full reset, transition modes here.
+            self.turn_off();
+            self.initialize();
+        }
 
-        // if self.radio.events_edend.read().events_edend().bit_is_set() {
-        //     sys_log!("IRQ - Sampling of energy detection complete. A new ED sample is ready for readout from the RADIO.EDSAMPLE register.");
-        //     self.radio.events_edend.reset();
-        // }
-        // if self
-        //     .radio
-        //     .events_edstopped
-        //     .read()
-        //     .events_edstopped()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - The sampling of energy detection has stopped");
-        //     self.radio.events_edstopped.reset();
-        // }
-
-        // if self
-        //     .radio
-        //     .events_payload
-        //     .read()
-        //     .events_payload()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - Packet payload sent or received");
-        //     self.radio.events_payload.reset();
-        // }
-
-         if self.radio.events_end.read().events_end().bit_is_set() {
-             sys_log!("IRQ - Packet sent or received");
-             self.radio.events_end.reset();
-
-             match self.get_state() {
-                 RadioState::RxIdle => {
-                     if self.radio.crcstatus.read().crcstatus().is_crcok() {
-                         let buf: &[u8] = unsafe {&*self.receive_buffer.data.get() };
-                         sys_log!("CRC: OK!");
-
-                         let mut buf = unsafe { (*self.receive_buffer.data.get()) };
-                         let len = buf[0] as usize;
-                         if len > 0 {
-                             self.receive_buffer.completed.fetch_add(1, Ordering::Relaxed);
-                         //    sys_log!("buf: {:02X?}", &buf[..len]);
-                         }
-                     } else {
-                         sys_log!("CRC: BAD!");
-                     }
-                 }
-                 RadioState::TxIdle => {
-                     // transition back to Rx
-                     self.set_mode(DriverState::Rx);
-                 }
-                 s => panic!("Don't know how to handle {:?} during event end", s),
-             }
-             self.turn_off();
-             self.initialize();
-             //self.start_recv();
-         }
-
-         self.enable_interrupts();
+        self.enable_interrupts();
     }
 
     /// Generate a Extended Unique Identifier (RFC2373) from the FICR registers so the
@@ -637,6 +482,15 @@ impl Radio<'_> {
         let device_addr2: [u8; 4] =
             ficr.deviceaddr[1].read().deviceaddr().bits().to_le_bytes();
 
+        sys_log!(
+            "MAC ADDR {}:{}:{}:{}:{}:{}",
+            device_addr1[0],
+            device_addr1[1],
+            device_addr1[2],
+            device_addr1[3],
+            device_addr2[0],
+            device_addr2[1]
+        );
         let mut bytes = [0; 16];
         // Link-local address block.
         bytes[0..2].copy_from_slice(&[0xFE, 0x80]);
