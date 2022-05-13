@@ -5,22 +5,27 @@
 #![no_std]
 #![no_main]
 
-use task_net_api::*;
+use task_aether_api::*;
 use userlib::*;
 
-task_slot!(NET, net);
+task_slot!(AETHER, aether);
 
 #[export_name = "main"]
 fn main() -> ! {
-    let net = NET.get_task_id();
-    let net = Net::from(net);
+    let aether = AETHER.get_task_id();
+    let aether = Aether::from(aether);
 
     const SOCKET: SocketName = SocketName::broadcast;
 
-    // If this system is running in VLAN mode, then we broadcast to each
-    // possible VLAN in turn.  Otherwise, broadcast normal packets.
-    #[cfg(feature = "vlan")]
-    let mut vid_iter = VLAN_RANGE.cycle();
+    let tx_bytes: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+    let meta = UdpMetadata {
+        // IPv6 multicast address for "all routers"
+        addr: Address::Ipv6(Ipv6Address([
+            0xff, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+        ])),
+        port: 7,
+        payload_len: tx_bytes.len() as u32,
+    };
 
     loop {
         let tx_bytes: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -36,7 +41,7 @@ fn main() -> ! {
         };
 
         hl::sleep_for(500);
-        net.send_packet(SOCKET, meta, &tx_bytes).unwrap();
+        aether.send_packet(SOCKET, meta, &tx_bytes).unwrap();
         UDP_BROADCAST_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
     }
 }

@@ -7,7 +7,7 @@ use userlib::sys_log;
 
 
 /// The maximum size of a 802.15.4 packet payload.
-const MAX_PACKET_SIZE: usize = 127;
+const MAX_PACKET_SIZE: usize = 256;
 /// The length of the phy length field in bytes. beautiful.
 const PHY_LEN_LEN: usize = 1;
 /// The length of the crc field in bytes
@@ -39,8 +39,9 @@ impl RecvPacketBuffer {
         let read_packet = self.read_packet.get() as usize;
         // DMA engine stores a length at the first write.
         let len = unsafe { (*self.data.get())[read_packet] as usize };
-        // sys_log!("length of packet: {}", len);
         assert!(len != 0);
+        sys_log!("\nlen: {}", len);
+        assert!(len < MAX_PACKET_SIZE);
 
         // // Construct a slice of the Mac Data Protocol Unit
         let mpdu_slice = unsafe {
@@ -73,7 +74,7 @@ impl RecvPacketBuffer {
         let next_packet: isize = self.next_packet.get();
 
         let next_offset = next_packet + phy_payload_len + 1;
-        self.next_packet.set(if next_offset + MAX_PACKET_SIZE as isize > buf_len {
+        self.next_packet.set(if next_offset + MAX_PACKET_SIZE as isize >= buf_len {
             // we need to overflow around since it's possible a packet could be written
             // which wouldn't fit.
             0
@@ -81,7 +82,7 @@ impl RecvPacketBuffer {
             next_offset
         });
 
-        sys_log!("NEW PACKET OFFSET: {}", self.next_packet.get());
+        // sys_log!("NEW PACKET OFFSET: {}", self.next_packet.get());
     }
 
     /// Takes in the value of the PHR_LEN field updating where
@@ -92,7 +93,7 @@ impl RecvPacketBuffer {
         let read_packet: isize = self.read_packet.get();
 
         let next_offset = read_packet + phy_payload_len + 1;
-        self.read_packet.set(if next_offset + MAX_PACKET_SIZE  as isize> buf_len {
+        self.read_packet.set(if next_offset + MAX_PACKET_SIZE  as isize >= buf_len {
             0
         } else {
             next_offset
@@ -115,7 +116,7 @@ impl RecvPacketBuffer {
         let read_packet: isize = self.read_packet.get();
         let next_packet: isize = self.next_packet.get();
 
-        sys_log!("bo: {} np: {}", read_packet, next_packet);
+        // sys_log!("bo: {} np: {}", read_packet, next_packet);
         // Technically we could have packets if we looped all the way around
         // to the exact some spot, but that's fairly unlikely and the buffer
         // is dropping things at that points, so like, best effort.
@@ -134,7 +135,7 @@ impl RecvPacketBuffer {
                 [read_packet..read_packet + 1])
                 .as_mut_ptr()
         };
-        sys_log!("set up a new buffer: 0x{:p}", buffer_ptr);
+        //sys_log!("set up a new buffer: 0x{:p}", buffer_ptr);
         unsafe {
             radio
                 .radio

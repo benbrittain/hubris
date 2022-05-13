@@ -35,9 +35,11 @@ fn main() -> ! {
         sys_log!("RECV");
         match net.recv_packet(SocketName::ping, &mut rx_data_buf) {
             Ok(meta) => {
-                sys_log!("{:?}", &rx_data_buf[..meta.payload_len as usize]);
+                let addr: smoltcp::wire::IpAddress = meta.addr.into();
+                sys_log!("packet from: {}", addr);
+                //sys_log!("{:?}", &rx_data_buf[..meta.payload_len as usize]);
 
-                sys_log!("RESPOND");
+                sys_log!("RESP");
                 net.send_packet(SocketName::ping, meta, &tx[..]);
                 hl::sleep_for(2000);
             }

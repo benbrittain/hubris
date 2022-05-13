@@ -84,16 +84,36 @@ features = ["semihosting"]
 uses = ["radio", "ficr", "rng", "clock"]
 interrupts = { "radio.irq" = 1 }
 
-[tasks.aetherping]
-path = "../../task/aetherping"
-name = "task-aetherping"
-features = ["semihosting"]
-#features = ["log-null"]
-priority = 4
-requires = {flash = 32768, ram = 4096}
+#[tasks.aetherping]
+#path = "../../task/aetherping"
+#name = "task-aetherping"
+##features = ["log-null"]
+#priority = 4
+#requires = {flash = 32768, ram = 4096}
+#start = true
+#task-slots = ["aether"]
+#stacksize = 2048
+
+
+
+[tasks.udpecho]
+path = "../../task/udpecho"
+name = "task-udpecho"
+priority = 3
+requires = {flash = 16384, ram = 8192}
+stacksize = 4096
 start = true
 task-slots = ["aether"]
-stacksize = 2048
+
+[tasks.udpbroadcast]
+path = "../../task/udpbroadcast"
+name = "task-udpbroadcast"
+priority = 3
+requires = {flash = 16384, ram = 8192}
+stacksize = 4096
+start = true
+task-slots = ["aether"]
+
 
 [tasks.blinky]
 path = "../../task/blinky"
@@ -102,19 +122,33 @@ priority = 4
 requires = {flash = 16384, ram = 1024}
 start = true
 # features = ["semihosting"]
-task-slots = ["gpio", "aether"]
+task-slots = ["gpio"]
 
 
 
 [config.aether]
 pan_id = 0x1eaf
 
-[config.aether.sockets.ping]
+[config.aether.sockets.echo]
 kind = "udp"
-owner = { name = "aetherping", notification = 5 }
-port = 8
-tx = { packets = 5, bytes = 1024 }
-rx = { packets = 5, bytes = 1024 }
+owner = {name = "udpecho", notification = 1}
+port = 7
+tx = { packets = 3, bytes = 1024 }
+rx = { packets = 3, bytes = 1024 }
+
+[config.aether.sockets.broadcast]
+kind = "udp"
+owner = {name = "udpbroadcast", notification = 1}
+port = 997
+tx = { packets = 3, bytes = 1024 }
+rx = { packets = 3, bytes = 1024 }
+
+# [config.aether.sockets.ping]
+# kind = "udp"
+# owner = { name = "aetherping", notification = 5 }
+# port = 8
+# tx = { packets = 1, bytes = 1024 }
+# rx = { packets = 1, bytes = 1024 }
 
 #
 #interrupts = {"rtc2.irq" = 3 }

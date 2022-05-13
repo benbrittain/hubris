@@ -182,7 +182,7 @@ impl Radio<'_> {
     }
 
     pub fn initialize(&self) {
-        sys_log!("Initializing Radio...");
+        //sys_log!("Initializing Radio...");
         // Setup high frequency clocks.
         self.initialize_clocks();
 
@@ -259,7 +259,7 @@ impl Radio<'_> {
         &self,
         read_buffer: impl FnOnce(&mut [u8]) -> R,
     ) -> Option<R> {
-        sys_log!("Trying to receive...");
+        //sys_log!("Trying to receive...");
         self.receive_buffer.read(read_buffer)
     }
 
@@ -274,7 +274,7 @@ impl Radio<'_> {
         len: usize,
         build_packet: impl FnOnce(&mut [u8]) -> R,
     ) -> Option<R> {
-        sys_log!("Trying to send ...");
+        //sys_log!("Trying to send ...");
         let resp = self.transmit_buffer.write(build_packet, len);
         self.start_transmit();
         resp
@@ -315,7 +315,7 @@ impl Radio<'_> {
 
     /// Transition radio into transmit state
     pub fn start_transmit(&self) {
-        sys_log!("starting transmit from state: {:?}", self.get_state());
+        //sys_log!("starting transmit from state: {:?}", self.get_state());
         self.turn_off();
         self.set_mode(DriverState::CcaTx);
 
@@ -325,7 +325,7 @@ impl Radio<'_> {
 
     /// Transition radio into receive state
     pub fn start_recv(&self) {
-        sys_log!("Starting recieve... {:?}", self.get_state());
+        //sys_log!("Starting recieve... {:?}", self.get_state());
         self.radio.events_ready.reset();
 
         match self.get_driver_state() {
@@ -434,7 +434,7 @@ impl Radio<'_> {
             match self.get_state() {
                 RadioState::RxIdle => {
                     if self.radio.crcstatus.read().crcstatus().is_crcok() {
-                        sys_log!("CRC: OK!");
+//                        sys_log!("CRC: OK!");
                         self.receive_buffer.got_packet();
                         //let buf: &[u8] =
                         //    unsafe { &*self.receive_buffer.data.get() };

@@ -30,7 +30,7 @@ static SYS_LOGGER: SysLogger = SysLogger;
 struct SysLogger;
 impl log::Log for SysLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
-        true
+        metadata.level() <= log::max_level()
     }
 
     fn log(&self, record: &log::Record) {

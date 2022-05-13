@@ -5,38 +5,37 @@
 #![no_std]
 #![no_main]
 
-use task_net_api::*;
+use task_aether_api::*;
 use userlib::*;
 
-task_slot!(NET, net);
+task_slot!(AETHER, aether);
 
 #[export_name = "main"]
 fn main() -> ! {
-    let net = NET.get_task_id();
-    let net = Net::from(net);
+    let aether = AETHER.get_task_id();
+    let aether = Aether::from(aether);
 
     const SOCKET: SocketName = SocketName::echo;
 
     loop {
         // Tiiiiiny payload buffer
         let mut rx_data_buf = [0u8; 64];
-        match net.recv_packet(SOCKET, &mut rx_data_buf) {
+        match aether.recv_packet(SOCKET, &mut rx_data_buf) {
             Ok(meta) => {
                 // A packet! We want to turn it right around. Deserialize the
                 // packet header; unwrap because we trust the server.
                 UDP_ECHO_COUNT
                     .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
                 // Now we know how many bytes to return.
-                let tx_bytes = &rx_data_buf[..meta.size as usize];
+                let tx_bytes = &rx_data_buf[..meta.payload_len as usize];
 
-                net.send_packet(SOCKET, meta, tx_bytes).unwrap();
+                aether.send_packet(SOCKET, meta, tx_bytes).unwrap();
             }
-            Err(NetError::QueueEmpty) => {
+            Err(AetherError::QueueEmpty) => {
                 // Our incoming queue is empty. Wait for more packets.
                 sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
             }
-            Err(NetError::NotYours) => panic!(),
-            Err(NetError::InvalidVLan) => panic!(),
+            _ => panic!(),
         }
 
         // Try again.
