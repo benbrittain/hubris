@@ -113,8 +113,8 @@ pan_id = 0x1eaf
 kind = "udp"
 owner = { name = "aetherping", notification = 5 }
 port = 8
-tx = { packets = 3, bytes = 1024 }
-rx = { packets = 3, bytes = 1024 }
+tx = { packets = 5, bytes = 1024 }
+rx = { packets = 5, bytes = 1024 }
 
 #
 #interrupts = {"rtc2.irq" = 3 }

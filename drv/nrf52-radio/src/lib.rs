@@ -20,7 +20,7 @@ use userlib::sys_log;
 mod buffer;
 mod phy;
 
-use buffer::PacketBuffer;
+use buffer::{RecvPacketBuffer, PacketBuffer};
 
 /// Mask of known bytes in ACK packet
 pub const MHMU_MASK: u32 = 0xff000700;
@@ -75,7 +75,7 @@ enum RadioState {
 pub struct Radio<'a> {
     radio: &'a device::radio::RegisterBlock,
     transmit_buffer: PacketBuffer,
-    receive_buffer: PacketBuffer,
+    receive_buffer: RecvPacketBuffer,
     mode: UnsafeCell<DriverState>,
 }
 
@@ -86,7 +86,7 @@ impl Radio<'_> {
         Radio {
             radio,
             transmit_buffer: PacketBuffer::new(),
-            receive_buffer: PacketBuffer::new(),
+            receive_buffer: RecvPacketBuffer::new(),
             mode: UnsafeCell::new(DriverState::Sleep),
         }
     }
@@ -137,6 +137,12 @@ impl Radio<'_> {
     /// Point the EasyDMA engine at a valid memory region
     /// for receptionand transmission of packets.
     fn configure_packet_buffer(&self, buf: &PacketBuffer) {
+        buf.set_as_buffer(&self);
+    }
+
+    /// Point the EasyDMA engine at a valid memory region
+    /// for receptionand transmission of packets.
+    fn configure_packet_buffer_recv(&self, buf: &RecvPacketBuffer) {
         buf.set_as_buffer(&self);
     }
 
@@ -244,8 +250,7 @@ impl Radio<'_> {
     }
 
     pub fn can_recv(&mut self) -> bool {
-        let idx = self.receive_buffer.completed.load(Ordering::Relaxed);
-        idx >= 1
+        self.receive_buffer.has_packets()
     }
 
     /// If we've gotten a packet, send it to smoltcp
@@ -327,7 +332,7 @@ impl Radio<'_> {
             // we always start recieving if starting from a sleep state
             DriverState::Sleep | DriverState::Rx => {
                 self.set_mode(DriverState::Rx);
-                self.configure_packet_buffer(&self.receive_buffer);
+                self.configure_packet_buffer_recv(&self.receive_buffer);
             }
             DriverState::CcaTx => {
                 self.configure_packet_buffer(&self.transmit_buffer);
@@ -368,7 +373,7 @@ impl Radio<'_> {
             .events_ccabusy()
             .bit_is_set()
         {
-            sys_log!("IRQ - Wireless medium busy - do not send");
+//            sys_log!("IRQ - Wireless medium busy - do not send");
             self.radio.events_ccabusy.reset();
         }
 
@@ -379,7 +384,7 @@ impl Radio<'_> {
             .events_ccaidle()
             .bit_is_set()
         {
-            sys_log!("IRQ - Wireless medium in idle - clear to send");
+//            sys_log!("IRQ - Wireless medium in idle - clear to send");
             self.radio.events_ccaidle.reset();
             self.set_mode(DriverState::Tx);
             self.radio.tasks_txen.write(|w| w.tasks_txen().set_bit());
@@ -388,10 +393,10 @@ impl Radio<'_> {
         if self.radio.events_ready.read().events_ready().bit_is_set() {
             // this should always be triggered in conjunction with
             // a tx/rx event ready state
-            sys_log!(
-                "IRQ - RADIO has ramped up and is ready to be started {:?}",
-                self.get_state()
-            );
+//            sys_log!(
+//                "IRQ - RADIO has ramped up and is ready to be started {:?}",
+//                self.get_state()
+//            );
             self.radio.events_ready.reset();
             // if not transmitting
             match self.get_driver_state() {
@@ -418,30 +423,32 @@ impl Radio<'_> {
             .events_framestart()
             .bit_is_set()
         {
-            sys_log!("IRQ - IEEE 802.15.4 length field received");
+//            sys_log!("IRQ - IEEE 802.15.4 length field received");
             self.radio.events_framestart.reset();
         }
 
         if self.radio.events_end.read().events_end().bit_is_set() {
-            sys_log!("IRQ - Packet sent or received");
+//            sys_log!("IRQ - Packet sent or received");
             self.radio.events_end.reset();
 
             match self.get_state() {
                 RadioState::RxIdle => {
                     if self.radio.crcstatus.read().crcstatus().is_crcok() {
-                        let buf: &[u8] =
-                            unsafe { &*self.receive_buffer.data.get() };
                         sys_log!("CRC: OK!");
+                        self.receive_buffer.got_packet();
+                        //let buf: &[u8] =
+                        //    unsafe { &*self.receive_buffer.data.get() };
 
-                        let mut buf =
-                            unsafe { (*self.receive_buffer.data.get()) };
-                        let len = buf[0] as usize;
-                        if len > 0 {
-                            self.receive_buffer
-                                .completed
-                                .fetch_add(1, Ordering::Relaxed);
-                            // sys_log!("buf: {:02X?}", &buf[..len]);
-                        }
+                        //let mut buf =
+                        //    unsafe { (*self.receive_buffer.data.get()) };
+                        //let len = buf[0] as usize;
+                        //if len > 0 {
+
+                        //    self.receive_buffer
+                        //        .completed
+                        //        .fetch_add(1, Ordering::Relaxed);
+                        //    // sys_log!("buf: {:02X?}", &buf[..len]);
+                        //}
                     } else {
                         sys_log!("CRC: BAD!");
                     }

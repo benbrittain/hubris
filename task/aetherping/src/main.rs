@@ -17,28 +17,29 @@ fn main() -> ! {
     sys_log!("starting aetherping");
     let tx = [0xBB, 0xBB, 0xBB];
 
-    let meta = UdpMetadata {
-        // IPv6 multicast address for "all routers"
-        addr: Address::Ipv6(Ipv6Address([
-            0xff, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
-        ])),
-        port: 8,
-        payload_len: tx.len() as u32,
-    };
+    //let meta = UdpMetadata {
+    //    // IPv6 multicast address for "all routers"
+    //    addr: Address::Ipv6(Ipv6Address([
+    //        0xff, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+    //    ])),
+    //    port: 8,
+    //    payload_len: tx.len() as u32,
+    //};
 
     let ip = net.get_addr();
     sys_log!("generated an ip: {:?}", ip);
 
     let mut rx_data_buf = [0u8; 128];
     loop {
-        //sys_log!("SEND");
-        //net.send_packet(SocketName::ping, meta, &tx[..]);
-        //hl::sleep_for(4000);
 
         sys_log!("RECV");
         match net.recv_packet(SocketName::ping, &mut rx_data_buf) {
             Ok(meta) => {
                 sys_log!("{:?}", &rx_data_buf[..meta.payload_len as usize]);
+
+                sys_log!("RESPOND");
+                net.send_packet(SocketName::ping, meta, &tx[..]);
+                hl::sleep_for(2000);
             }
             Err(AetherError::QueueEmpty) => {
                 // Our incoming queue is empty. Wait for more packets.
@@ -46,5 +47,6 @@ fn main() -> ! {
             }
             _ => panic!("oh no!"),
         }
+        //hl::sleep_for(2000);
     }
 }
