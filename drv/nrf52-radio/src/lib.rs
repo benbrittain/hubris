@@ -10,59 +10,14 @@ use core::{
 use device::radio::intenclr::DISABLED_A;
 use nrf52840_pac as device;
 use smoltcp::{
-    phy::{self, Device, DeviceCapabilities, Medium},
+    phy::{Device, DeviceCapabilities, Medium},
     time::Instant,
     Result,
 };
 use task_aether_api::*;
 use userlib::sys_log;
 
-pub struct RadioRxToken<'a>(&'a Radio<'a>);
-pub struct RadioTxToken<'a>(&'a Radio<'a>);
-
-impl<'a> phy::Device<'a> for Radio<'_> {
-    type RxToken = RadioRxToken<'a>;
-    type TxToken = RadioTxToken<'a>;
-
-    fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
-        // if the buffers aren't full, we attempt to receive packets
-        if self.can_recv() && self.can_send() {
-            Some((RadioRxToken(self), RadioTxToken(self)))
-        } else {
-            None
-        }
-    }
-
-    fn transmit(&'a mut self) -> Option<Self::TxToken> {
-        Some(RadioTxToken(self))
-    }
-
-    fn capabilities(&self) -> DeviceCapabilities {
-        let mut caps = DeviceCapabilities::default();
-        caps.max_transmission_unit = 127;
-        caps.max_burst_size = Some(1);
-        caps.medium = Medium::Ieee802154;
-        caps
-    }
-}
-
-impl<'a> phy::RxToken for RadioRxToken<'a> {
-    fn consume<R, F>(mut self, timestamp: Instant, f: F) -> Result<R>
-    where
-        F: FnOnce(&mut [u8]) -> Result<R>,
-    {
-        self.0.try_recv(f).expect("failed to recive packet")
-    }
-}
-
-impl<'a> phy::TxToken for RadioTxToken<'a> {
-    fn consume<R, F>(self, _timestamp: Instant, len: usize, f: F) -> Result<R>
-    where
-        F: FnOnce(&mut [u8]) -> Result<R>,
-    {
-        self.0.try_send(len, f).expect("failed to transmit packet")
-    }
-}
+mod phy;
 
 /// Mask of known bytes in ACK packet
 pub const MHMU_MASK: u32 = 0xff000700;
@@ -667,43 +622,6 @@ impl Radio<'_> {
              //self.start_recv();
          }
 
-        // if self
-        //     .radio
-        //     .events_mhrmatch
-        //     .read()
-        //     .events_mhrmatch()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - MAC header match found");
-        //     self.radio.events_mhrmatch.reset();
-        // }
-
-        // if self.radio.events_phyend.read().events_phyend().bit_is_set() {
-        //     sys_log!("IRQ - Generated in Ble_LR125Kbit, Ble_LR500Kbit and BleIeee802154_250Kbit modes when last bit is sent on air.");
-        //     self.radio.events_phyend.reset();
-        // }
-
-        // if self
-        //     .radio
-        //     .events_rateboost
-        //     .read()
-        //     .events_rateboost()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - Ble_LR CI field received, receive mode is changed from Ble_LR125Kbit to Ble_LR500Kbit.");
-        //     self.radio.events_rateboost.reset();
-        // }
-
-        // if self
-        //     .radio
-        //     .events_rssiend
-        //     .read()
-        //     .events_rssiend()
-        //     .bit_is_set()
-        // {
-        //     sys_log!("IRQ - Sampling of receive signal strength complete");
-        //     self.radio.events_rssiend.reset();
-        // }
          self.enable_interrupts();
     }
 
