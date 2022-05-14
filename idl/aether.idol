@@ -44,7 +44,7 @@ Interface(
             doc: "Get Device local IP address",
             args: { },
             reply: Result(
-                ok: "Ipv6Address",
+                ok: "Ieee802154Address",
                 err: CLike("AetherError"),
             ),
         ),

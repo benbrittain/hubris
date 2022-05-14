@@ -20,9 +20,9 @@ fn main() -> ! {
     let tx_bytes: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
     let meta = UdpMetadata {
         // IPv6 multicast address for "all routers"
-        addr: Address::Ipv6(Ipv6Address([
+        addr: Ipv6Address([
             0xff, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
-        ])),
+        ]),
         port: 7,
         payload_len: tx_bytes.len() as u32,
     };

@@ -133,15 +133,15 @@ pan_id = 0x1eaf
 kind = "udp"
 owner = {name = "udpecho", notification = 1}
 port = 7
-tx = { packets = 3, bytes = 1024 }
-rx = { packets = 3, bytes = 1024 }
+tx = { packets = 16, bytes = 1024 }
+rx = { packets = 16, bytes = 1024 }
 
 [config.aether.sockets.broadcast]
 kind = "udp"
 owner = {name = "udpbroadcast", notification = 1}
 port = 997
-tx = { packets = 3, bytes = 1024 }
-rx = { packets = 3, bytes = 1024 }
+tx = { packets = 16, bytes = 1024 }
+rx = { packets = 16, bytes = 1024 }
 
 # [config.aether.sockets.ping]
 # kind = "udp"

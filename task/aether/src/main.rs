@@ -14,7 +14,7 @@ use smoltcp::{
     socket::{UdpPacketMetadata, UdpSocket, UdpSocketBuffer},
     storage::RingBuffer,
     time::Instant,
-    wire::{Ieee802154Pan, IpAddress, IpCidr, SixlowpanFragKey},
+    wire::{Ieee802154Pan, Ieee802154Address, IpAddress, IpCidr, SixlowpanFragKey},
 };
 
 mod server;
@@ -50,13 +50,10 @@ fn main() -> ! {
     radio.initialize();
 
     // Derive an IP address for our WPAN using IEEE UEI-64.
-    let ipv6_addr = IpAddress::Ipv6(radio.get_ieee_uei_64().into());
-    let mut ip_addrs = [IpCidr::new(ipv6_addr, 64)];
 
-    // TODO CHECK WHAT THIS IS BEN
-    let ieee802154_addr = smoltcp::wire::Ieee802154Address::Extended([
-        0x1a, 0x0b, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
-    ]);
+    let ieee802154_addr: Ieee802154Address = radio.get_addr().into();
+    let ipv6_addr = IpAddress::Ipv6(ieee802154_addr.as_link_local_address().unwrap());
+    let mut ip_addrs = [IpCidr::new(ipv6_addr, 64)];
 
     let mut neighbor_cache_storage: [Option<(IpAddress, Neighbor)>; NEIGHBORS] =
         [None; NEIGHBORS];

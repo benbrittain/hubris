@@ -48,6 +48,9 @@ impl RecvPacketBuffer {
             &mut (*self.data.get())
                 [read_packet + PHY_LEN_LEN..read_packet + len - CRC_LEN]
         };
+
+        let frame  = smoltcp::wire::ieee802154::Frame::new_checked(&mpdu_slice);
+        sys_log!("{}", frame.unwrap());
         // sys_log!("READ - {} | {:02X?}", len, &mut mpdu_slice[..]);
         let resp = func(mpdu_slice);
 
@@ -101,14 +104,22 @@ impl RecvPacketBuffer {
     }
 
     pub fn got_packet(&self) {
-        let mut read_packet = self.read_packet.get();
+        let mut read_packet = self.read_packet.get() as usize;
+
         // DMA engine stores a length at the first write.
         let len = unsafe { (*self.data.get())[read_packet as usize] as isize };
-        let view = unsafe { &(*self.data.get())[0..50] };
+
         // sys_log!("GOT PACKET - {} | {:02X?}", len, &view[..50]);
 
-        if len != 0 {
-            self.move_next_packet(len);
+        if len >= 3 {
+            let mpdu_slice = unsafe {
+                &mut (*self.data.get())
+                    [read_packet + PHY_LEN_LEN..read_packet + len as usize - CRC_LEN]
+            };
+            if let Ok(frame) = smoltcp::wire::ieee802154::Frame::new_checked(&mpdu_slice) {
+                sys_log!("{} | {}", len, frame);
+                self.move_next_packet(len);
+            }
         }
     }
 

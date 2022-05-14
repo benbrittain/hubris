@@ -2,7 +2,7 @@ use idol_runtime::{ClientError, Leased, NotificationHandler, RequestError};
 use smoltcp::iface::{Interface, SocketHandle};
 use smoltcp::socket::UdpSocket;
 
-use task_aether_api::{AetherError, Ipv6Address, SocketName, UdpMetadata};
+use task_aether_api::{AetherError, Ipv6Address, Ieee802154Address, SocketName, UdpMetadata};
 use userlib::*;
 
 use crate::RADIO_IRQ;
@@ -81,7 +81,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
                 Ok(UdpMetadata {
                     port: endp.port,
                     payload_len: body.len() as u32,
-                    addr: endp.addr.try_into().map_err(|_| ()).unwrap(),
+                    addr: endp.addr.try_into().unwrap(),
                 })
             }
             Err(smoltcp::Error::Exhausted) => {
@@ -123,8 +123,8 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
     fn get_addr(
         &mut self,
         msg: &userlib::RecvMessage,
-    ) -> Result<Ipv6Address, idol_runtime::RequestError<AetherError>> {
-        Ok(self.iface.device_mut().get_ieee_uei_64())
+    ) -> Result<Ieee802154Address, idol_runtime::RequestError<AetherError>> {
+        Ok(self.iface.device_mut().get_addr())
     }
 
     fn get_rssi(
@@ -149,6 +149,6 @@ impl NotificationHandler for AetherServer<'_> {
     }
 }
 mod idl {
-    use task_aether_api::{AetherError, Ipv6Address, SocketName, UdpMetadata};
+    use task_aether_api::{AetherError, Ieee802154Address, SocketName, UdpMetadata};
     include!(concat!(env!("OUT_DIR"), "/server_stub.rs"));
 }

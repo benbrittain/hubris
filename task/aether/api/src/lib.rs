@@ -7,7 +7,7 @@ use zerocopy::{FromBytes, AsBytes};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct UdpMetadata {
-    pub addr: Address,
+    pub addr: Ipv6Address,
     pub port: u16,
     pub payload_len: u32,
 }
@@ -21,33 +21,49 @@ impl From<UdpMetadata> for smoltcp::wire::IpEndpoint {
     }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-pub enum Address {
-    Ipv6(Ipv6Address),
-}
-
-impl From<Address> for smoltcp::wire::IpAddress {
-    fn from(a: Address) -> Self {
-        match a {
-            Address::Ipv6(a) => Self::Ipv6(a.into()),
-        }
+impl From<Ipv6Address> for smoltcp::wire::IpAddress {
+    fn from(a: Ipv6Address) -> Self {
+        Self::Ipv6(a.into())
     }
 }
 
-impl TryFrom<smoltcp::wire::IpAddress> for Address {
-    type Error = AddressUnspecified;
+impl TryFrom<smoltcp::wire::IpAddress> for Ipv6Address {
+    type Error = ();
 
+    // We implement a TryFrom due to the socket.recv() api response, but we should
+    // *NEVER* get anything besides a Ipv6 addr.
     fn try_from(a: smoltcp::wire::IpAddress) -> Result<Self, Self::Error> {
         use smoltcp::wire::IpAddress;
 
         match a {
-            IpAddress::Ipv6(a) => Ok(Self::Ipv6(a.into())),
-            _ => Err(AddressUnspecified),
+            IpAddress::Ipv6(a) => Ok(a.into()),
+            _ => Err(()),
         }
     }
 }
 
-pub struct AddressUnspecified;
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, FromBytes, AsBytes)]
+#[repr(C)]
+#[serde(transparent)]
+/// An extended 802.15.4 address.
+pub struct Ieee802154Address(pub [u8; 8]);
+
+impl From<smoltcp::wire::Ieee802154Address> for Ieee802154Address {
+    fn from(a: smoltcp::wire::Ieee802154Address) -> Self {
+        match a {
+            smoltcp::wire::Ieee802154Address::Extended(e) => {
+                Self(e)
+            }
+            _=> panic!("This is not an extended address!"),
+        }
+    }
+}
+
+impl From<Ieee802154Address> for smoltcp::wire::Ieee802154Address {
+    fn from(a: Ieee802154Address) -> Self {
+        smoltcp::wire::Ieee802154Address::Extended(a.0)
+    }
+}
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, FromBytes, AsBytes)]
 #[repr(C)]
@@ -72,11 +88,11 @@ pub enum AetherError {
     /// No Packets to recieve. Will not wake task until there is a packet
     QueueEmpty = 1,
     /// No space in the transmit buffer
-    NoTransmitSlot = 2,
+    NoTransmitSlot,
     /// This socket is owned by a different task (check app.toml)
-    WrongOwner = 3,
+    WrongOwner,
     /// Unknown Error from smoltcp socket.
-    Unknown = 4,
+    Unknown,
 }
 
 include!(concat!(env!("OUT_DIR"), "/client_stub.rs"));

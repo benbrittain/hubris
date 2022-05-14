@@ -26,6 +26,7 @@ fn main() -> ! {
     //    payload_len: tx.len() as u32,
     //};
 
+//    TRACE - filled fe80::58d3:fff:fecc:7391 => 1a-0b-42-42-42-42-42-42 (was empty)
     let ip = net.get_addr();
     sys_log!("generated an ip: {:?}", ip);
 

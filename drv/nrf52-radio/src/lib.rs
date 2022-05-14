@@ -469,11 +469,8 @@ impl Radio<'_> {
         self.enable_interrupts();
     }
 
-    /// Generate a Extended Unique Identifier (RFC2373) from the FICR registers so the
-    /// device can self-assign a unique 64-Bit IP Version 6 interface identifier (EUI-64).
-    pub fn get_ieee_uei_64(&mut self) -> Ipv6Address {
-        // TODO this isn't valid, I'm not an Org.
-        pub const ORG_UNIQUE_IDENT: u32 = 0xb1eafb;
+    /// Get the device specific IEEE 802.15.4 long/extended address
+    pub fn get_addr(&mut self) -> Ieee802154Address {
         let ficr = unsafe { &*device::FICR::ptr() };
 
         let device_addr1: [u8; 4] =
@@ -481,32 +478,10 @@ impl Radio<'_> {
         let device_addr2: [u8; 4] =
             ficr.deviceaddr[1].read().deviceaddr().bits().to_le_bytes();
 
-        sys_log!(
-            "MAC ADDR {}:{}:{}:{}:{}:{}",
-            device_addr1[0],
-            device_addr1[1],
-            device_addr1[2],
-            device_addr1[3],
-            device_addr2[0],
-            device_addr2[1]
-        );
-        let mut bytes = [0; 16];
-        // Link-local address block.
-        bytes[0..2].copy_from_slice(&[0xFE, 0x80]);
-        // Bytes 2..8 are all zero.
-        // Top three bytes of MAC address...
-        bytes[8..11].copy_from_slice(&device_addr1[0..3]);
-
-        // ...with administration scope bit flipped.
-        bytes[8] ^= 0b0000_0010;
-
-        // Inserted FF FE from EUI64 transform.
-        bytes[11..13].copy_from_slice(&[0xFF, 0xFE]);
-
-        // Bottom three bytes of MAC address.
-        bytes[13] = device_addr1[3];
-        bytes[14..16].copy_from_slice(&device_addr2[0..2]);
-
-        Ipv6Address(bytes)
+        let mut bytes = [0; 8];
+        bytes[0..=3].copy_from_slice(&device_addr1[..4]);
+        bytes[4..=5].copy_from_slice(&[0xFF, 0xFE]);
+        bytes[6..=7].copy_from_slice(&device_addr2[..2]);
+        Ieee802154Address(bytes)
     }
 }
