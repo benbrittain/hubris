@@ -3,7 +3,7 @@
 use derive_idol_err::IdolError;
 use serde::{Deserialize, Serialize};
 use userlib::*;
-use zerocopy::{FromBytes, AsBytes};
+use zerocopy::{AsBytes, FromBytes};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct UdpMetadata {
@@ -27,6 +27,12 @@ impl From<Ipv6Address> for smoltcp::wire::IpAddress {
     }
 }
 
+impl From<[u8; 16]> for Ipv6Address {
+    fn from(a: [u8; 16]) -> Self {
+        Ipv6Address(a)
+    }
+}
+
 impl TryFrom<smoltcp::wire::IpAddress> for Ipv6Address {
     type Error = ();
 
@@ -42,6 +48,23 @@ impl TryFrom<smoltcp::wire::IpAddress> for Ipv6Address {
     }
 }
 
+impl core::fmt::Display for Ipv6Address {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        write!(
+            f,
+            "{:02x}-{:02x}-{:02x}-{:02x}-{:02x}-{:02x}-{:02x}-{:02x}",
+            self.0[0],
+            self.0[1],
+            self.0[2],
+            self.0[3],
+            self.0[4],
+            self.0[5],
+            self.0[6],
+            self.0[7]
+        )
+    }
+}
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, FromBytes, AsBytes)]
 #[repr(C)]
 #[serde(transparent)]
@@ -51,10 +74,8 @@ pub struct Ieee802154Address(pub [u8; 8]);
 impl From<smoltcp::wire::Ieee802154Address> for Ieee802154Address {
     fn from(a: smoltcp::wire::Ieee802154Address) -> Self {
         match a {
-            smoltcp::wire::Ieee802154Address::Extended(e) => {
-                Self(e)
-            }
-            _=> panic!("This is not an extended address!"),
+            smoltcp::wire::Ieee802154Address::Extended(e) => Self(e),
+            _ => panic!("This is not an extended address!"),
         }
     }
 }

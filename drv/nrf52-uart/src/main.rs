@@ -19,7 +19,7 @@ task_slot!(GPIO, gpio);
 const TX_BUFFER_SIZE: usize = 16;
 static mut TX_BUFFER: [u8; TX_BUFFER_SIZE] = [0; TX_BUFFER_SIZE];
 
-const RX_BUFFER_SIZE: usize = 128;
+const RX_BUFFER_SIZE: usize = 2048;
 static mut RX_BUFFER: [u8; RX_BUFFER_SIZE] = [0; RX_BUFFER_SIZE];
 static mut RX_BUF_CNT: usize = 0;
 

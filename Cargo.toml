@@ -40,6 +40,7 @@ members = [
 
     "task/template",
 
+    "task/slip-aether",
     "task/blinky",
     "task/air-quality",
     "task/aether",

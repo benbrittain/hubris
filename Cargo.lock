@@ -2715,6 +2715,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "serial-line-ip"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08a0b86bcdab6b15029ff7e37ae8acdadbf5d48e070ec5a067aa5c31e306f958"
+
+[[package]]
 name = "sha2"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2779,6 +2785,7 @@ checksum = "d2308a1657c8db1f5b4993bab4e620bdbe5623bd81f254cf60326767bb243237"
 dependencies = [
  "bitflags",
  "byteorder",
+ "log",
  "managed",
 ]
 
@@ -3234,6 +3241,19 @@ dependencies = [
  "num-traits",
  "userlib",
  "zerocopy",
+]
+
+[[package]]
+name = "task-slip-aether"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-semihosting",
+ "drv-nrf52-uart-api",
+ "serial-line-ip",
+ "smoltcp 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "task-aether-api",
+ "userlib",
 ]
 
 [[package]]
