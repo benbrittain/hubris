@@ -11,7 +11,7 @@ use smoltcp::{
         PacketAssembler,
     },
     phy::Medium,
-    socket::{UdpPacketMetadata, UdpSocket, UdpSocketBuffer},
+    socket::udp::{PacketMetadata, Socket, PacketBuffer},
     storage::RingBuffer,
     time::Instant,
     wire::{
@@ -36,7 +36,7 @@ impl log::Log for SysLogger {
     }
 
     fn log(&self, record: &log::Record) {
-        sys_log!("{} - {}", record.level(), record.args());
+//        sys_log!("{} - {}", record.level(), record.args());
     }
     fn flush(&self) {}
 }
@@ -54,18 +54,25 @@ fn main() -> ! {
     // Derive an IP address for our WPAN using IEEE UEI-64.
     let ieee802154_addr: Ieee802154Address = radio.get_addr().into();
     // TODO We should set a link local address when we have SLAAC/NDISC working.
-    // let link_local_ipv6_addr = IpAddress::Ipv6(ieee802154_addr.as_link_local_address().unwrap());
-    // let mut ip_addrs = [IpCidr::new(link_local_ipv6_addr, 64)];
+    let link_local_ipv6_addr = IpAddress::Ipv6(ieee802154_addr.as_link_local_address().unwrap());
+    //let mut ip_addrs = [IpCidr::new(link_local_ipv6_addr, 64)];
     //for addr in ip_addrs {
     //    sys_log!("IP ADDR: {}", addr);
     //}
 
     let mut site_local_ip_bytes = [0; 16];
-    site_local_ip_bytes[..8].copy_from_slice(&[0xfd, 0x00, 0x0d, 0xb8, 0x00, 0x05, 0x00, 0x00]);
+    // big endian so the ip addr looks pretty and like the pan_id
+    let pan_id_bytes = generated::PAN_ID.0.to_be_bytes();
+    site_local_ip_bytes[..8].copy_from_slice(&[0xfd, 0x00, pan_id_bytes[0], pan_id_bytes[1], 0x00, 0x00, 0x00, 0x00]);
     site_local_ip_bytes[8..].copy_from_slice(&radio.get_addr().0);
     let site_local_ipv6_addr = IpAddress::Ipv6(smoltcp::wire::Ipv6Address::from_bytes(&site_local_ip_bytes));
-    let mut ip_addrs = [IpCidr::new(site_local_ipv6_addr, 64)];
-    sys_log!("IP addr: {}", ip_addrs[0]);
+    let mut ip_addrs = [
+        IpCidr::new(site_local_ipv6_addr, 64),
+        IpCidr::new(link_local_ipv6_addr, 64),
+    ];
+    for addr in ip_addrs {
+        sys_log!("IP addr: {}", addr);
+    }
 
     let mut neighbor_cache_storage: [Option<(IpAddress, Neighbor)>; NEIGHBORS] =
         [None; NEIGHBORS];
@@ -102,10 +109,9 @@ fn main() -> ! {
 
     // Bind sockets to their ports.
     for (&h, &port) in socket_handles.iter().zip(&generated::SOCKET_PORTS) {
-        sys_log!("binding {:?} to port {:?}", site_local_ipv6_addr, port);
         iface
-            .get_socket::<UdpSocket>(h)
-            .bind((site_local_ipv6_addr, port))
+            .get_socket::<Socket>(h)
+            .bind((link_local_ipv6_addr, port))
             .map_err(|_| ())
             .unwrap();
     }

@@ -95,7 +95,7 @@ fn generate_aether_config(
         "{}",
         quote::quote! {
             use core::sync::atomic::{AtomicBool, Ordering};
-            use smoltcp::socket::{UdpPacketMetadata, UdpSocket, UdpSocketBuffer};
+            use smoltcp::socket::udp;
 
             pub const SOCKET_COUNT: usize = #socket_count;
         }
@@ -194,8 +194,8 @@ fn generate_buffers(
     let bufname: syn::Ident =
         syn::parse_str(&format!("SOCK_{}_DAT_{}", dir, upname)).unwrap();
     Ok(quote::quote! {
-        static mut #hdrname: [UdpPacketMetadata; #pktcnt] = [
-            UdpPacketMetadata::EMPTY; #pktcnt
+        static mut #hdrname: [udp::PacketMetadata; #pktcnt] = [
+            udp::PacketMetadata::EMPTY; #pktcnt
         ];
         static mut #bufname: [u8; #bytecnt] = [0u8; #bytecnt];
     })
@@ -206,7 +206,7 @@ fn generate_state_struct(
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
     let n = config.sockets.len();
     Ok(quote::quote! {
-        pub(crate) struct Sockets<'a>(pub [UdpSocket<'a>; #n]);
+        pub(crate) struct Sockets<'a>(pub [udp::Socket<'a>; #n]);
     })
 }
 
@@ -225,12 +225,12 @@ fn generate_constructor(
             syn::parse_str(&format!("SOCK_TX_DAT_{}", upname)).unwrap();
 
         quote::quote! {
-            UdpSocket::new(
-                UdpSocketBuffer::new(
+            udp::Socket::new(
+                udp::PacketBuffer::new(
                     unsafe { &mut #rxhdrs[..] },
                     unsafe { &mut #rxbytes[..] },
                 ),
-                UdpSocketBuffer::new(
+                udp::PacketBuffer::new(
                     unsafe { &mut #txhdrs[..] },
                     unsafe { &mut #txbytes[..] },
                 ),

@@ -40,7 +40,7 @@ impl RecvPacketBuffer {
         // DMA engine stores a length at the first write.
         let len = unsafe { (*self.data.get())[read_packet] as usize };
         assert!(len != 0);
-        sys_log!("\nlen: {}", len);
+        //sys_log!("\nlen: {}", len);
         assert!(len < MAX_PACKET_SIZE);
 
         // // Construct a slice of the Mac Data Protocol Unit
@@ -51,7 +51,7 @@ impl RecvPacketBuffer {
 
         let frame  = smoltcp::wire::ieee802154::Frame::new_checked(&mpdu_slice);
         sys_log!("{}", frame.unwrap());
-        // sys_log!("READ - {} | {:02X?}", len, &mut mpdu_slice[..]);
+//        sys_log!("READ - {} | {:02X?}", len, &mut mpdu_slice[..]);
         let resp = func(mpdu_slice);
 
         self.move_read_packet(len as isize);
@@ -109,15 +109,13 @@ impl RecvPacketBuffer {
         // DMA engine stores a length at the first write.
         let len = unsafe { (*self.data.get())[read_packet as usize] as isize };
 
-        // sys_log!("GOT PACKET - {} | {:02X?}", len, &view[..50]);
-
         if len >= 3 {
             let mpdu_slice = unsafe {
                 &mut (*self.data.get())
                     [read_packet + PHY_LEN_LEN..read_packet + len as usize - CRC_LEN]
             };
             if let Ok(frame) = smoltcp::wire::ieee802154::Frame::new_checked(&mpdu_slice) {
-                sys_log!("{} | {}", len, frame);
+                sys_log!("GOT PACKET - {} | {}", len, frame);
                 self.move_next_packet(len);
             }
         }
@@ -154,19 +152,6 @@ impl RecvPacketBuffer {
                 .write(|w| w.packetptr().bits(buffer_ptr as u32));
         }
     }
-
-    //pub fn write<R>(
-    //    &self,
-    //    func: impl FnOnce(&mut [u8]) -> R,
-    //    len: usize,
-    //) -> Option<R> {
-    //    let mut buf = unsafe { &mut *self.data.get() };
-    //    let resp = func(&mut buf[1..len + 1]);
-    //    // set the phdr
-    //    buf[0] = len as u8 + 2;
-    //    sys_log!("WRITE - {} | {:02X?}", len, &buf[1..len + 1]);
-    //    Some(resp)
-    //}
 }
 
 pub struct PacketBuffer {
@@ -189,8 +174,8 @@ impl PacketBuffer {
             panic!("{} packets dropped!", idx - 1);
         }
         let len = buf[0] as usize;
+//        sys_log!("READ - {} | {:02X?}", len, &buf[1..len+1]);
         let resp = func(&mut buf[1..len - 1]);
-        //         sys_log!("READ - {} | {:02X?}", len, &buf[1..len+1]);
         Some(resp)
     }
 
@@ -216,7 +201,11 @@ impl PacketBuffer {
         let resp = func(&mut buf[1..len + 1]);
         // set the phdr
         buf[0] = len as u8 + 2;
-        // sys_log!("WRITE - {} | {:02X?}", len, &buf[1..len + 1]);
+//        sys_log!("WRITE - {} | {:02X?}", len, &buf[1..len + 1]);
+        let frame  = smoltcp::wire::ieee802154::Frame::new_checked(&buf[1..len + 1]);
+        sys_log!("{}", frame.unwrap());
+
         Some(resp)
+
     }
 }

@@ -315,6 +315,7 @@ impl Radio<'_> {
 
     /// Transition radio into transmit state
     pub fn start_transmit(&self) {
+        sys_log!("SEND");
         //sys_log!("starting transmit from state: {:?}", self.get_state());
         self.turn_off();
         self.set_mode(DriverState::CcaTx);
@@ -325,7 +326,8 @@ impl Radio<'_> {
 
     /// Transition radio into receive state
     pub fn start_recv(&self) {
-        //sys_log!("Starting recieve... {:?}", self.get_state());
+        sys_log!("RECV");
+//        sys_log!("Starting recieve...");
         self.radio.events_ready.reset();
 
         match self.get_driver_state() {
@@ -365,6 +367,7 @@ impl Radio<'_> {
     }
     pub fn handle_interrupt(&mut self) {
         self.disable_interrupts();
+        sys_log!("interrupt!");
 
         if self
             .radio
@@ -434,7 +437,7 @@ impl Radio<'_> {
             match self.get_state() {
                 RadioState::RxIdle => {
                     if self.radio.crcstatus.read().crcstatus().is_crcok() {
-//                        sys_log!("CRC: OK!");
+                        sys_log!("CRC: OK!");
                         self.receive_buffer.got_packet();
                         //let buf: &[u8] =
                         //    unsafe { &*self.receive_buffer.data.get() };

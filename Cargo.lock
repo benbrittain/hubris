@@ -534,7 +534,6 @@ dependencies = [
  "nrf52840-pac",
  "panic-halt",
  "panic-itm",
- "panic-semihosting",
 ]
 
 [[package]]
@@ -1129,7 +1128,7 @@ version = "0.1.0"
 dependencies = [
  "cfg-if 1.0.0",
  "cortex-m",
- "smoltcp 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp",
  "stm32h7",
  "userlib",
 ]
@@ -1768,15 +1767,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ksz8463"
-version = "0.1.0"
-dependencies = [
- "drv-spi-api",
- "ringbuf",
- "userlib",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1975,7 +1965,7 @@ dependencies = [
  "cortex-m-semihosting",
  "log",
  "nrf52840-pac",
- "smoltcp 0.8.0",
+ "smoltcp",
  "task-aether-api",
  "userlib",
 ]
@@ -2778,18 +2768,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "smoltcp"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2308a1657c8db1f5b4993bab4e620bdbe5623bd81f254cf60326767bb243237"
-dependencies = [
- "bitflags",
- "byteorder",
- "log",
- "managed",
-]
-
-[[package]]
 name = "spd"
 version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/spd#e37e79f6d7d4805b8a6a8c4d37699c4bd60222ea"
@@ -2998,7 +2976,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde",
- "smoltcp 0.8.0",
+ "smoltcp",
  "ssmarshal",
  "syn",
  "task-aether-api",
@@ -3018,7 +2996,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde",
- "smoltcp 0.8.0",
+ "smoltcp",
  "ssmarshal",
  "syn",
  "userlib",
@@ -3032,7 +3010,7 @@ dependencies = [
  "cortex-m-semihosting",
  "num-traits",
  "serde",
- "smoltcp 0.8.0",
+ "smoltcp",
  "ssmarshal",
  "task-aether-api",
  "userlib",
@@ -3124,41 +3102,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "task-net"
-version = "0.1.0"
-dependencies = [
- "build-net",
- "build-util",
- "cfg-if 1.0.0",
- "cortex-m",
- "drv-gimlet-seq-api",
- "drv-sidecar-seq-api",
- "drv-spi-api",
- "drv-stm32h7-eth",
- "drv-stm32xx-sys-api",
- "drv-stm32xx-uid",
- "drv-user-leds-api",
- "hubris-num-tasks",
- "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
- "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
- "ksz8463",
- "num-traits",
- "proc-macro2",
- "quote",
- "ringbuf",
- "serde",
- "smoltcp 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ssmarshal",
- "stm32h7",
- "syn",
- "task-net-api",
- "userlib",
- "vsc7448-pac",
- "vsc85xx",
- "zerocopy",
-]
-
-[[package]]
 name = "task-net-api"
 version = "0.1.0"
 dependencies = [
@@ -3167,7 +3110,7 @@ dependencies = [
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
  "serde",
- "smoltcp 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp",
  "ssmarshal",
  "userlib",
  "zerocopy",
@@ -3251,7 +3194,7 @@ dependencies = [
  "cortex-m-semihosting",
  "drv-nrf52-uart-api",
  "serial-line-ip",
- "smoltcp 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp",
  "task-aether-api",
  "userlib",
 ]

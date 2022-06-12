@@ -44,6 +44,9 @@ pub mod task_slot;
 pub mod units;
 pub mod util;
 
+#[cfg(feature = "log-rtt")]
+pub extern crate rtt_target;
+
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct Lease<'a> {

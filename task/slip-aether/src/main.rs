@@ -31,7 +31,7 @@ fn main() -> ! {
         let amount_read = uart.read(0, &mut buffer).unwrap();
         if amount_read > 0 {
             sys_log!("=========");
-            sys_log!("in: {:x?}", &buffer[..amount_read]);
+//            sys_log!("in: {:x?}", &buffer[..amount_read]);
         }
         let mut slip = Decoder::new();
         if let Ok((bytes_processed, output_slice, is_end_of_packet)) =
@@ -41,7 +41,7 @@ fn main() -> ! {
                 match smoltcp::wire::Ipv6Packet::new_checked(output_slice) {
                     Ok(packet) => {
                         let repr = Ipv6Repr::parse(&packet).unwrap();
-                        let dest_addr = repr.dst_addr;
+                        let mut dest_addr = repr.dst_addr;
 
                         let udp_packet = smoltcp::wire::UdpPacket::new_checked(
                             packet.payload(),
@@ -50,6 +50,14 @@ fn main() -> ! {
 
                         let tx_bytes = udp_packet.payload();
 
+                        sys_log!("swaping ip addr");
+                        sys_log!("original dst: {:x?}", dest_addr.0);
+                        dest_addr.0[0] = 0xfe;
+                        dest_addr.0[1] = 0x80;
+                        dest_addr.0[2] = 0x00;
+                        dest_addr.0[3] = 0x00;
+                        sys_log!("new dst: {:x?}", dest_addr.0);
+
                         let meta = UdpMetadata {
                             addr: Ipv6Address(dest_addr.0),
                             port: udp_packet.dst_port(),
@@ -57,12 +65,16 @@ fn main() -> ! {
                         };
                         sys_log!("sending: {:?}", meta);
 
-                        aether.send_packet(SOCKET, meta, &tx_bytes).unwrap();
+                        aether.send_packet(SOCKET, meta, &tx_bytes);
+                        hl::sleep_for(100);
+                        let mut rx_data_buf = [0u8; 64];
+                        sys_log!("REC: {:?}", aether.recv_packet(SOCKET, &mut rx_data_buf));
                     }
                     Err(e) => sys_log!("err: {:?}", e),
                 }
             }
         }
-        hl::sleep_for(100);
+        hl::sleep_for(1000);
     }
+
 }

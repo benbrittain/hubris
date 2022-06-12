@@ -6,18 +6,18 @@ pub use bstringify;
 pub use paste;
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "log-itm")] {
+   if #[cfg(feature = "log-itm")] {
         #[macro_export]
         macro_rules! sys_log {
             ($s:expr) => {
                 unsafe {
-                    let stim = &mut (*cortex_m::peripheral::ITM::ptr()).stim[1];
+                    let stim = &mut (*cortex_m::peripheral::ITM::ptr()).stim[0];
                     cortex_m::iprintln!(stim, $s);
                 }
             };
             ($s:expr, $($tt:tt)*) => {
                 unsafe {
-                    let stim = &mut (*cortex_m::peripheral::ITM::ptr()).stim[1];
+                    let stim = &mut (*cortex_m::peripheral::ITM::ptr()).stim[0];
                     cortex_m::iprintln!(stim, $s, $($tt)*);
                 }
             };

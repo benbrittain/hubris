@@ -12,9 +12,9 @@ task-aether-api = {path = "../aether/api"}
 serial-line-ip = "*"
 
 [dependencies.smoltcp]
-# path = "../../../smoltcp/"
+version = "*"
 default-features = false
-features = [ "verbose", "log", "proto-ipv6", "proto-ipv4"]
+features = [ "verbose", "log", "proto-ipv6"]
 
 [features]
 itm = [ "userlib/log-itm" ]

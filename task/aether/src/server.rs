@@ -1,6 +1,6 @@
 use idol_runtime::{ClientError, Leased, NotificationHandler, RequestError};
 use smoltcp::iface::{Interface, SocketHandle};
-use smoltcp::socket::UdpSocket;
+use smoltcp::socket::udp::{self, Socket};
 
 use task_aether_api::{AetherError, Ipv6Address, Ieee802154Address, SocketName, UdpMetadata};
 use userlib::*;
@@ -43,13 +43,13 @@ impl<'a> AetherServer<'a> {
     pub fn get_socket_mut(
         &mut self,
         index: usize,
-    ) -> Result<&mut UdpSocket<'a>, RequestError<AetherError>> {
+    ) -> Result<&mut Socket<'a>, RequestError<AetherError>> {
         let handle = self
             .socket_handles
             .get(index)
             .cloned()
             .ok_or(RequestError::Fail(ClientError::BadMessageContents))?;
-        Ok(self.iface.get_socket::<UdpSocket>(handle))
+        Ok(self.iface.get_socket::<Socket>(handle))
     }
 }
 
@@ -84,7 +84,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
                     addr: endp.addr.try_into().unwrap(),
                 })
             }
-            Err(smoltcp::Error::Exhausted) => {
+            Err(udp::RecvError::Exhausted) => {
                 Err(AetherError::QueueEmpty.into())
             }
             e => Err(AetherError::Unknown.into()),
@@ -113,7 +113,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
                     .map_err(|_| RequestError::went_away())?;
                 Ok(())
             }
-            Err(smoltcp::Error::Exhausted) => {
+            Err(udp::SendError::BufferFull) => {
                 Err(AetherError::NoTransmitSlot.into())
             }
             e => panic!("couldn't send packet {:?}", e),

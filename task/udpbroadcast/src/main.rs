@@ -17,11 +17,11 @@ fn main() -> ! {
 
     const SOCKET: SocketName = SocketName::broadcast;
 
-    let tx_bytes: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+    let tx_bytes: [u8; 2] = [0xbb, 0xbb];
     let meta = UdpMetadata {
         // IPv6 multicast address for "all routers"
         addr: Ipv6Address([
-            0xff, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+            0xff, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
         ]),
         port: 7,
         payload_len: tx_bytes.len() as u32,

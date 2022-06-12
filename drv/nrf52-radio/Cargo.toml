@@ -18,7 +18,7 @@ semihosting = [ "userlib/log-semihosting", "cortex-m-semihosting"]
 log-null = ["userlib/log-null"]
 
 [dependencies.smoltcp]
-path = "../../../smoltcp/"
+version = "*"
 default-features = false
 features = [
   "verbose", "log", "proto-sixlowpan", "socket-udp", "medium-ieee802154"
