@@ -1,7 +1,7 @@
 name = "demo-nrf52840-feather"
 target = "thumbv7em-none-eabihf"
 board = "nrf52840-feather"
-chip = "../../chips/nRF52840.toml"
+chip = "../../chips/nrf52"
 stacksize = 896
 
 [kernel]
