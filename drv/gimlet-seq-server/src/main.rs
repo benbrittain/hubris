@@ -34,6 +34,8 @@ mod payload;
 #[derive(Copy, Clone, PartialEq)]
 enum Trace {
     Ice40Rails(bool, bool),
+    IdentValid(bool),
+    ChecksumValid(bool),
     Reprogram(bool),
     Programmed,
     Programming,
@@ -64,6 +66,17 @@ fn main() -> ! {
     let sys = sys_api::Sys::from(SYS.get_task_id());
     let jefe = Jefe::from(JEFE.get_task_id());
     let hf = hf_api::HostFlash::from(HF.get_task_id());
+
+    // Turn off the chassis LED, in case this is a task restart (and not a
+    // full chip restart, which would leave the GPIO unconfigured).
+    sys.gpio_configure_output(
+        CHASSIS_LED,
+        sys_api::OutputType::PushPull,
+        sys_api::Speed::Low,
+        sys_api::Pull::None,
+    )
+    .unwrap();
+    sys.gpio_reset(CHASSIS_LED).unwrap();
 
     // To allow for the possibility that we are restarting, rather than
     // starting, we take care during early sequencing to _not turn anything
@@ -216,12 +229,15 @@ fn main() -> ! {
     // serve up a recognizable ident code.
     let seq = seq_spi::SequencerFpga::new(spi.device(SEQ_SPI_DEVICE));
 
-    // TODO: the ident is not sufficient for distinguishing the various Gimlet
-    // FPGA images that are floating around, so, we need to always reprogram it.
-    //
-    //let reprogram = !seq.valid_ident();
-    let reprogram = true;
+    // If the image announces the correct identifier and has a matching
+    // bitstream checksum, then we can skip reprogramming;
+    let ident_valid = seq.valid_ident();
+    ringbuf_entry!(Trace::IdentValid(ident_valid));
 
+    let checksum_valid = seq.valid_checksum();
+    ringbuf_entry!(Trace::ChecksumValid(checksum_valid));
+
+    let reprogram = !ident_valid || !checksum_valid;
     ringbuf_entry!(Trace::Reprogram(reprogram));
 
     // We only want to reset and reprogram the FPGA when absolutely required.
@@ -256,6 +272,13 @@ fn main() -> ! {
             // active low.
             sys.gpio_set(pin).unwrap();
         }
+
+        // Store our bitstream checksum in the FPGA's checksum registers
+        // (which are initialized to zero).  This value is read back before
+        // programming the FPGA image (e.g. if this task restarts or the SP
+        // itself is reflashed), and used to decide whether FPGA programming
+        // is required.
+        seq.write_checksum().unwrap();
     }
 
     ringbuf_entry!(Trace::Programmed);
@@ -303,6 +326,9 @@ fn main() -> ! {
 
     ringbuf_entry!(Trace::ClockConfigSuccess);
     ringbuf_entry!(Trace::A2);
+
+    // Turn on the chassis LED once we reach A2
+    sys.gpio_set(CHASSIS_LED).unwrap();
 
     let mut buffer = [0; idl::INCOMING_SIZE];
     let mut server = ServerImpl {
@@ -486,6 +512,7 @@ impl idl::InOrderSequencerImpl for ServerImpl {
             }
 
             (PowerState::A0, PowerState::A2)
+            | (PowerState::A0PlusHP, PowerState::A2)
             | (PowerState::A0Thermtrip, PowerState::A2) => {
                 //
                 // Flip the UART mux back to disabled
@@ -646,6 +673,9 @@ cfg_if::cfg_if! {
             port: PGS_PORT,
             pin_mask: PG_V1P2_MASK | PG_V3P3_MASK
         };
+
+        // SP_STATUS_LED
+        const CHASSIS_LED: sys_api::PinSet = sys_api::Port::A.pin(3);
 
         // Gimlet provides external pullups.
         const PGS_PULL: sys_api::Pull = sys_api::Pull::None;

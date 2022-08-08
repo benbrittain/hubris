@@ -782,6 +782,7 @@ dependencies = [
 name = "drv-gimlet-seq-server"
 version = "0.1.0"
 dependencies = [
+ "build-fpga-regmap",
  "build-i2c",
  "build-util",
  "byteorder",
@@ -802,6 +803,7 @@ dependencies = [
  "ringbuf",
  "serde",
  "serde_json",
+ "sha2",
  "task-jefe-api",
  "userlib",
  "zerocopy",
@@ -1191,6 +1193,7 @@ dependencies = [
  "gnarle",
  "num-traits",
  "ringbuf",
+ "sha2",
  "userlib",
  "vsc7448-pac",
  "vsc85xx",
@@ -3954,7 +3957,7 @@ dependencies = [
 [[package]]
 name = "vsc7448-pac"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/vsc7448#22700dceaeadc3d9600d3cb74cbf4e639c9850e1"
+source = "git+https://github.com/oxidecomputer/vsc7448#a9e71588498885e9a77282186f2bb576812f1af2"
 dependencies = [
  "derive_more",
 ]
@@ -3967,6 +3970,7 @@ dependencies = [
  "userlib",
  "vsc-err",
  "vsc7448-pac",
+ "zerocopy",
 ]
 
 [[package]]
