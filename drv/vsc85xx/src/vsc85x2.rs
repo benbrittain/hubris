@@ -7,13 +7,13 @@ use vsc7448_pac::phy;
 
 // These IDs are (id1 << 16) | id2, meaning they also capture device revision
 // number.  This matters, because the patches are device-revision specific.
-const VSC8552_ID: u32 = 0x704e2;
+pub const VSC8552_ID: u32 = 0x704e2;
 
 // The datasheet will tell you that the ID for the VSC8562 should be 0x707b1.
 // Don't believe its lies!  The SDK (as the one source of truth) informs us
 // that it shares an ID with the VSC8564, then has a secondary ID in the
 // EXTENDED_CHIP_ID register
-const VSC8562_ID: u32 = 0x707e1;
+pub const VSC8562_ID: u32 = 0x707e1;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Vsc85x2Type {
@@ -30,7 +30,10 @@ pub struct Vsc85x2 {
 }
 
 impl Vsc85x2 {
-    pub fn init<P: PhyRw>(base_port: u8, rw: &mut P) -> Result<Self, VscError> {
+    pub fn init_sgmii<P: PhyRw>(
+        base_port: u8,
+        rw: &mut P,
+    ) -> Result<Self, VscError> {
         let phy = &mut Phy::new(base_port, rw);
         let phy_type = match phy.read_id()? {
             VSC8552_ID => {
@@ -55,7 +58,7 @@ impl Vsc85x2 {
             base_port,
             phy_type,
         };
-        out.phy(0, rw).init()?;
+        out.phy(0, rw).init_sgmii()?;
         Ok(out)
     }
 
@@ -108,13 +111,13 @@ impl<'a, P: PhyRw> Vsc85x2Phy<'a, P> {
     ///
     /// This must be called on the base port of the PHY; otherwise it will
     /// return an error.
-    fn init(&mut self) -> Result<(), VscError> {
+    fn init_sgmii(&mut self) -> Result<(), VscError> {
         match self.phy_type {
             Vsc85x2Type::Vsc8552 => {
                 crate::vsc8552::Vsc8552Phy { phy: &mut self.phy }.init()
             }
             Vsc85x2Type::Vsc8562 => {
-                crate::vsc8562::Vsc8562Phy { phy: &mut self.phy }.init()
+                crate::vsc8562::Vsc8562Phy { phy: &mut self.phy }.init_sgmii()
             }
         }
     }

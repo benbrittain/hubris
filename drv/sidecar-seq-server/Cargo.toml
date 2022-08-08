@@ -15,8 +15,9 @@ drv-i2c-api = {path = "../i2c-api"}
 drv-i2c-devices = {path = "../i2c-devices"}
 drv-fpga-api = {path = "../fpga-api"}
 drv-sidecar-seq-api = {path = "../sidecar-seq-api"}
-drv-sidecar-mainboard-controller-api = {path = "../sidecar-mainboard-controller-api"}
-cortex-m = { version = "0.7", features = ["inline-asm"] }
+drv-sidecar-mainboard-controller = {path = "../sidecar-mainboard-controller"}
+drv-sidecar-front-io = {path = "../sidecar-front-io", features = ["controller", "phy_smi"]}
+cortex-m = { version = "0.7", features = ["inline-asm"]}
 cfg-if = "1"
 idol-runtime = {git = "https://github.com/oxidecomputer/idolatry.git"}
 
@@ -27,10 +28,6 @@ h753 = ["build-i2c/h753"]
 build-util = {path = "../../build/util"}
 build-i2c = {path = "../../build/i2c"}
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
-
-# a target for `cargo xtask check`
-[package.metadata.build]
-target = "thumbv7em-none-eabihf"
 
 # This section is here to discourage RLS/rust-analyzer from doing test builds,
 # since test builds don't work for cross compilation.

@@ -8,7 +8,7 @@
 
 use derive_idol_err::IdolError;
 use drv_fpga_api::FpgaError;
-pub use drv_sidecar_mainboard_controller_api::tofino2::{
+pub use drv_sidecar_mainboard_controller::tofino2::{
     TofinoPcieReset, TofinoSeqError, TofinoSeqState,
 };
 use userlib::*;
@@ -23,6 +23,7 @@ pub enum SeqError {
     SequencerTimeout = 5,
     InvalidTofinoVid = 6,
     SetVddCoreVoutFailed = 7,
+    NoFrontIOBoard = 8,
 }
 
 impl From<FpgaError> for SeqError {

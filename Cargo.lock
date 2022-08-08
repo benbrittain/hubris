@@ -173,6 +173,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd769563b4ea2953e2825c9e6b7470a5f55f67e0be00030bf3e390a2a6071f64"
 
 [[package]]
+name = "build-fpga-regmap"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "build-i2c"
 version = "0.1.0"
 dependencies = [
@@ -339,6 +347,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "colored"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3616f750b84d8f0de8a58bda93e08e2a81ad3f523089b05f1dffecab48c6cbd"
+dependencies = [
+ "atty",
+ "lazy_static",
+ "winapi",
 ]
 
 [[package]]
@@ -684,6 +703,8 @@ dependencies = [
  "bitfield",
  "cfg-if",
  "drv-fpga-api",
+ "drv-i2c-api",
+ "drv-i2c-devices",
  "drv-spi-api",
  "drv-stm32xx-sys-api",
  "num-traits",
@@ -696,10 +717,13 @@ dependencies = [
 name = "drv-fpga-server"
 version = "0.1.0"
 dependencies = [
+ "build-i2c",
  "build-util",
  "cfg-if",
  "drv-fpga-api",
  "drv-fpga-devices",
+ "drv-i2c-api",
+ "drv-i2c-devices",
  "drv-spi-api",
  "drv-stm32xx-sys-api",
  "gnarle",
@@ -987,6 +1011,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "drv-meanwell"
+version = "0.1.0"
+dependencies = [
+ "build-util",
+ "cfg-if",
+ "drv-meanwell-api",
+ "drv-stm32xx-sys-api",
+ "drv-user-leds-api",
+ "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "num-traits",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-meanwell-api"
+version = "0.1.0"
+dependencies = [
+ "derive-idol-err",
+ "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "num-traits",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "drv-nrf52-gpio-api"
 version = "0.1.0"
 dependencies = [
@@ -1131,9 +1182,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "drv-sidecar-mainboard-controller-api"
+name = "drv-sidecar-front-io"
 version = "0.1.0"
 dependencies = [
+ "build-fpga-regmap",
+ "build-util",
+ "drv-fpga-api",
+ "gnarle",
+ "num-traits",
+ "ringbuf",
+ "userlib",
+ "vsc7448-pac",
+ "vsc85xx",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-sidecar-mainboard-controller"
+version = "0.1.0"
+dependencies = [
+ "build-fpga-regmap",
  "build-util",
  "drv-fpga-api",
  "gnarle",
@@ -1159,7 +1227,7 @@ version = "0.1.0"
 dependencies = [
  "derive-idol-err",
  "drv-fpga-api",
- "drv-sidecar-mainboard-controller-api",
+ "drv-sidecar-mainboard-controller",
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
  "userlib",
@@ -1178,7 +1246,8 @@ dependencies = [
  "drv-fpga-api",
  "drv-i2c-api",
  "drv-i2c-devices",
- "drv-sidecar-mainboard-controller-api",
+ "drv-sidecar-front-io",
+ "drv-sidecar-mainboard-controller",
  "drv-sidecar-seq-api",
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
@@ -1837,7 +1906,7 @@ dependencies = [
 [[package]]
 name = "idol"
 version = "0.2.0"
-source = "git+https://github.com/oxidecomputer/idolatry.git#add88a535411bd98254b193887e39150d4bb500c"
+source = "git+https://github.com/oxidecomputer/idolatry.git#994077e3ecff3ec6df15c082fc4f810cf27c97f2"
 dependencies = [
  "indexmap",
  "quote",
@@ -1857,7 +1926,7 @@ dependencies = [
 [[package]]
 name = "idol-runtime"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/idolatry.git#add88a535411bd98254b193887e39150d4bb500c"
+source = "git+https://github.com/oxidecomputer/idolatry.git#994077e3ecff3ec6df15c082fc4f810cf27c97f2"
 dependencies = [
  "userlib",
  "zerocopy",
@@ -2040,6 +2109,17 @@ checksum = "a92518e98c078586bc6c934028adcca4c92a53d6a958196de835170a01d84e4b"
 dependencies = [
  "adler",
  "autocfg 1.0.1",
+]
+
+[[package]]
+name = "monorail-api"
+version = "0.1.0"
+dependencies = [
+ "derive-idol-err",
+ "num-traits",
+ "serde",
+ "userlib",
+ "vsc7448",
 ]
 
 [[package]]
@@ -3267,12 +3347,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "task-monorail-server"
+version = "0.1.0"
+dependencies = [
+ "build-util",
+ "cfg-if",
+ "drv-sidecar-front-io",
+ "drv-sidecar-seq-api",
+ "drv-spi-api",
+ "drv-stm32xx-sys-api",
+ "drv-user-leds-api",
+ "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "monorail-api",
+ "num-traits",
+ "ringbuf",
+ "serde",
+ "ssmarshal",
+ "task-net-api",
+ "userlib",
+ "vsc7448",
+ "vsc7448-pac",
+ "vsc85xx",
+ "zerocopy",
+]
+
+[[package]]
 name = "task-net-api"
 version = "0.1.0"
 dependencies = [
  "build-net",
  "derive-idol-err",
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
  "serde",
  "smoltcp",
@@ -3492,24 +3599,6 @@ dependencies = [
  "num-traits",
  "userlib",
  "zerocopy",
-]
-
-[[package]]
-name = "task-vsc7448"
-version = "0.1.0"
-dependencies = [
- "build-util",
- "cfg-if",
- "drv-sidecar-seq-api",
- "drv-spi-api",
- "drv-stm32xx-sys-api",
- "drv-user-leds-api",
- "ringbuf",
- "task-net-api",
- "userlib",
- "vsc7448",
- "vsc7448-pac",
- "vsc85xx",
 ]
 
 [[package]]
@@ -3844,7 +3933,7 @@ name = "vsc-err"
 version = "0.1.0"
 dependencies = [
  "drv-spi-api",
- "task-net-api",
+ "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
 ]
 
 [[package]]
@@ -3855,6 +3944,7 @@ dependencies = [
  "cfg-if",
  "drv-spi-api",
  "ringbuf",
+ "serde",
  "userlib",
  "vsc-err",
  "vsc7448-pac",
@@ -3864,7 +3954,7 @@ dependencies = [
 [[package]]
 name = "vsc7448-pac"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/vsc7448#873309872f2260672bd875a5c4a4ad5121da52df"
+source = "git+https://github.com/oxidecomputer/vsc7448#22700dceaeadc3d9600d3cb74cbf4e639c9850e1"
 dependencies = [
  "derive_more",
 ]
@@ -3959,10 +4049,10 @@ version = "1.0.0"
 dependencies = [
  "abi",
  "anyhow",
- "atty",
  "byteorder",
  "cargo_metadata",
  "clap 3.0.14",
+ "colored",
  "ctrlc",
  "dunce",
  "filetime",
@@ -3978,7 +4068,6 @@ dependencies = [
  "serde_json",
  "srec",
  "strsim 0.10.0",
- "termcolor",
  "toml",
  "walkdir",
  "zerocopy",
