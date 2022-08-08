@@ -380,9 +380,9 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "cortex-m"
-version = "0.7.3"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ac919ef424449ec8c08d515590ce15d9262c0ca5f0da5b0c901e971a3b783b3"
+checksum = "cd20d4ac4aa86f4f75f239d59e542ef67de87cce2c282818dc6e84155d3ea126"
 dependencies = [
  "bare-metal 0.2.5",
  "bitfield",
@@ -416,6 +416,15 @@ name = "cortex-m-semihosting"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bffa6c1454368a6aa4811ae60964c38e6996d397ff8095a8b9211b1c1f749bc"
+dependencies = [
+ "cortex-m",
+]
+
+[[package]]
+name = "cortex-m-semihosting"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c23234600452033cc77e4b761e740e02d2c4168e11dbf36ab14a0f58973592b0"
 dependencies = [
  "cortex-m",
 ]
@@ -604,7 +613,7 @@ dependencies = [
  "panic-halt",
  "panic-itm",
  "panic-semihosting",
- "stm32h7 0.14.0",
+ "stm32h7",
 ]
 
 [[package]]
@@ -761,7 +770,7 @@ dependencies = [
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
  "zerocopy",
 ]
@@ -1309,7 +1318,7 @@ name = "drv-stm32g0-usart"
 version = "0.1.0"
 dependencies = [
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.5.0",
  "drv-stm32xx-sys-api",
  "num-traits",
  "stm32g0",
@@ -1324,7 +1333,7 @@ dependencies = [
  "cfg-if",
  "cortex-m",
  "smoltcp",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
 ]
 
@@ -1333,7 +1342,7 @@ name = "drv-stm32h7-hash"
 version = "0.1.0"
 dependencies = [
  "drv-hash-api",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
  "vcell",
  "zerocopy",
@@ -1352,7 +1361,7 @@ dependencies = [
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
  "zerocopy",
 ]
@@ -1367,7 +1376,7 @@ dependencies = [
  "drv-stm32xx-sys-api",
  "num-traits",
  "ringbuf",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
  "zerocopy",
 ]
@@ -1387,7 +1396,7 @@ dependencies = [
  "fixedmap",
  "num-traits",
  "ringbuf",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
 ]
 
@@ -1395,7 +1404,7 @@ dependencies = [
 name = "drv-stm32h7-qspi"
 version = "0.1.0"
 dependencies = [
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
  "vcell",
  "zerocopy",
@@ -1410,7 +1419,7 @@ dependencies = [
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
  "zerocopy",
 ]
@@ -1421,7 +1430,7 @@ version = "0.1.0"
 dependencies = [
  "num-traits",
  "ringbuf",
- "stm32h7 0.14.0",
+ "stm32h7",
  "vcell",
  "zerocopy",
 ]
@@ -1445,7 +1454,7 @@ dependencies = [
  "quote",
  "ringbuf",
  "serde",
- "stm32h7 0.14.0",
+ "stm32h7",
  "syn",
  "userlib",
  "zerocopy",
@@ -1457,7 +1466,7 @@ version = "0.1.0"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
- "stm32h7 0.14.0",
+ "stm32h7",
 ]
 
 [[package]]
@@ -1465,7 +1474,7 @@ name = "drv-stm32h7-usart"
 version = "0.1.0"
 dependencies = [
  "drv-stm32xx-sys-api",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
 ]
 
@@ -1476,7 +1485,7 @@ dependencies = [
  "cfg-if",
  "num-traits",
  "stm32g0",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
  "zerocopy",
 ]
@@ -1492,7 +1501,7 @@ dependencies = [
  "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
  "stm32g0",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
  "zerocopy",
 ]
@@ -1660,6 +1669,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1847abb9cb65d566acd5942e94aea9c8f547ad02c98e1649326fc0e8910b8b1e"
 
 [[package]]
+name = "gateway-messages"
+version = "0.1.0"
+source = "git+https://github.com/oxidecomputer/omicron?rev=5951498bbd60306bf8e73a382e6b5aaed67a7616#5951498bbd60306bf8e73a382e6b5aaed67a7616"
+dependencies = [
+ "bitflags",
+ "hubpack",
+ "serde",
+ "serde_repr",
+ "smoltcp",
+]
+
+[[package]]
 name = "gemini-bu"
 version = "0.1.0"
 dependencies = [
@@ -1672,7 +1693,7 @@ dependencies = [
  "panic-halt",
  "panic-itm",
  "panic-semihosting",
- "stm32h7 0.14.0",
+ "stm32h7",
 ]
 
 [[package]]
@@ -1723,7 +1744,7 @@ dependencies = [
  "kern",
  "panic-itm",
  "panic-semihosting",
- "stm32h7 0.14.0",
+ "stm32h7",
 ]
 
 [[package]]
@@ -1754,7 +1775,7 @@ dependencies = [
  "panic-halt",
  "panic-itm",
  "panic-semihosting",
- "stm32h7 0.14.0",
+ "stm32h7",
 ]
 
 [[package]]
@@ -1870,6 +1891,25 @@ checksum = "2a2a2320eb7ec0ebe8da8f744d7812d9fc4cb4d09344ac01898dbcb6a20ae69b"
 dependencies = [
  "crypto-mac 0.11.1",
  "digest",
+]
+
+[[package]]
+name = "hubpack"
+version = "0.1.0"
+source = "git+https://github.com/cbiffle/hubpack?rev=df08cc3a6e1f97381cd0472ae348e310f0119e25#df08cc3a6e1f97381cd0472ae348e310f0119e25"
+dependencies = [
+ "hubpack_derive",
+ "serde",
+]
+
+[[package]]
+name = "hubpack_derive"
+version = "0.1.0"
+source = "git+https://github.com/cbiffle/hubpack?rev=df08cc3a6e1f97381cd0472ae348e310f0119e25#df08cc3a6e1f97381cd0472ae348e310f0119e25"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -2188,7 +2228,7 @@ version = "0.1.0"
 dependencies = [
  "array-init",
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.3.7",
  "log",
  "nrf52840-pac",
  "smoltcp",
@@ -2399,7 +2439,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d55dedd501dfd02514646e0af4d7016ce36bc12ae177ef52056989966a1eec"
 dependencies = [
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.3.7",
 ]
 
 [[package]]
@@ -2595,7 +2635,7 @@ dependencies = [
  "kern",
  "panic-itm",
  "panic-semihosting",
- "stm32h7 0.14.0",
+ "stm32h7",
 ]
 
 [[package]]
@@ -2878,18 +2918,18 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.130"
+version = "1.0.139"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f12d06de37cf59146fbdecab66aa99f9fe4f78722e3607577a5375d66bd0c913"
+checksum = "0171ebb889e45aa68b44aee0859b3eede84c6f5f5c228e6f140c0b2a0a46cad6"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.130"
+version = "1.0.139"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7bc1a1ab1961464eae040d96713baa5a724a8152c1222492465b54322ec508b"
+checksum = "dc1d3230c1de7932af58ad8ffbe1d784bd55efd5a9d84ac24f69c72d83543dfb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2905,6 +2945,17 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serde_repr"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2ad84e47328a31223de7fed7a4f5087f2d6ddfe586cf3ca25b7a165bc0a5aed"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -2962,7 +3013,7 @@ dependencies = [
  "panic-halt",
  "panic-itm",
  "panic-semihosting",
- "stm32h7 0.14.0",
+ "stm32h7",
 ]
 
 [[package]]
@@ -3104,18 +3155,6 @@ dependencies = [
 
 [[package]]
 name = "stm32h7"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b672c837e0ee8158ecc7fce0f9a948dd0693a9c588338e728d14b73307a0b7d"
-dependencies = [
- "bare-metal 0.2.5",
- "cortex-m",
- "cortex-m-rt",
- "vcell",
-]
-
-[[package]]
-name = "stm32h7"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f0faa648e03579befdd7267ab5c669624729028001fcf3c973832f53e310a06"
@@ -3135,7 +3174,7 @@ dependencies = [
  "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
  "ringbuf",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
  "zerocopy",
 ]
@@ -3184,9 +3223,9 @@ checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
 
 [[package]]
 name = "syn"
-version = "1.0.81"
+version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2afee18b8beb5a596ecb4a2dce128c719b4ba399d34126b9e4396e3f9860966"
+checksum = "a07e33e919ebcd69113d5be0e4d70c5707004ff45188910106854f38b960df4a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3217,7 +3256,7 @@ version = "0.1.0"
 dependencies = [
  "build-util",
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.3.7",
  "hubris-num-tasks",
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
@@ -3259,7 +3298,7 @@ dependencies = [
 name = "task-aetherping"
 version = "0.1.0"
 dependencies = [
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.3.7",
  "num-traits",
  "serde",
  "smoltcp",
@@ -3273,7 +3312,7 @@ name = "task-air-quality"
 version = "0.1.0"
 dependencies = [
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.3.7",
  "drv-nrf52-uart-api",
  "drv-sensirion-sps32",
  "userlib",
@@ -3284,7 +3323,7 @@ name = "task-blinky"
 version = "0.1.0"
 dependencies = [
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.3.7",
  "drv-nrf52-gpio-api",
  "userlib",
 ]
@@ -3347,7 +3386,7 @@ dependencies = [
  "armv6m-atomic-hack",
  "build-util",
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.5.0",
  "hubris-num-tasks",
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
@@ -3368,6 +3407,23 @@ dependencies = [
  "num-traits",
  "userlib",
  "zerocopy",
+]
+
+[[package]]
+name = "task-mgmt-gateway"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "drv-stm32h7-usart",
+ "drv-stm32xx-uid",
+ "gateway-messages",
+ "num-traits",
+ "ringbuf",
+ "serde",
+ "ssmarshal",
+ "task-net-api",
+ "tinyvec",
+ "userlib",
 ]
 
 [[package]]
@@ -3422,7 +3478,7 @@ dependencies = [
  "serde",
  "smoltcp",
  "ssmarshal",
- "stm32h7 0.14.0",
+ "stm32h7",
  "syn",
  "task-jefe-api",
  "task-net-api",
@@ -3524,7 +3580,7 @@ name = "task-slip-aether"
 version = "0.1.0"
 dependencies = [
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.3.7",
  "drv-nrf52-uart-api",
  "serial-line-ip",
  "smoltcp",
@@ -3547,7 +3603,7 @@ dependencies = [
  "num-traits",
  "ringbuf",
  "spd",
- "stm32h7 0.14.0",
+ "stm32h7",
  "userlib",
 ]
 
@@ -3685,7 +3741,7 @@ version = "0.1.0"
 dependencies = [
  "build-util",
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.5.0",
  "hubris-num-tasks",
  "num-traits",
  "test-api",
@@ -3728,7 +3784,7 @@ dependencies = [
  "build-util",
  "cfg-if",
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.5.0",
  "hubris-num-tasks",
  "num-traits",
  "test-api",
@@ -3768,7 +3824,7 @@ dependencies = [
  "panic-halt",
  "panic-itm",
  "panic-semihosting",
- "stm32h7 0.14.0",
+ "stm32h7",
 ]
 
 [[package]]
@@ -3797,7 +3853,7 @@ dependencies = [
  "panic-halt",
  "panic-itm",
  "panic-semihosting",
- "stm32h7 0.13.0",
+ "stm32h7",
 ]
 
 [[package]]
@@ -3859,7 +3915,7 @@ dependencies = [
  "panic-halt",
  "panic-itm",
  "panic-semihosting",
- "stm32h7 0.14.0",
+ "stm32h7",
 ]
 
 [[package]]
@@ -3909,9 +3965,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.5.1"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c1c1d5a42b6245520c249549ec267180beaffcc0615401ac8e31853d4b6d8d2"
+checksum = "87cc5ceb3875bb20c2890005a4e226a4651264a5c75edb2421b52861a0a0cb50"
 
 [[package]]
 name = "toml"

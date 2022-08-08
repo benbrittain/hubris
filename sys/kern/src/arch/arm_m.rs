@@ -70,6 +70,7 @@
 //! context switches, and just always do full save/restore, eliminating PendSV.
 //! We'll see.
 
+use core::arch;
 use core::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 
 use zerocopy::FromBytes;
@@ -335,7 +336,7 @@ pub fn apply_memory_protection(task: &task::Task) {
     let mpu = unsafe {
         // At least by not taking a &mut we're confident we're not violating
         // aliasing....
-        &*cortex_m::peripheral::MPU::ptr()
+        &*cortex_m::peripheral::MPU::PTR
     };
 
     unsafe {
@@ -442,7 +443,7 @@ pub fn apply_memory_protection(task: &task::Task) {
     let mpu = unsafe {
         // At least by not taking a &mut we're confident we're not violating
         // aliasing....
-        &*cortex_m::peripheral::MPU::ptr()
+        &*cortex_m::peripheral::MPU::PTR
     };
     unsafe {
         const DISABLE: u32 = 0b000;
@@ -549,7 +550,7 @@ pub fn start_first_task(tick_divisor: u32, task: &mut task::Task) -> ! {
     // from their defaults, so it can't cause any surprise preemption or
     // anything. But these operations are `unsafe` in the `cortex_m` crate.
     unsafe {
-        let scb = &*cortex_m::peripheral::SCB::ptr();
+        let scb = &*cortex_m::peripheral::SCB::PTR;
         // Faults on, on the processors that distinguish faults. This
         // distinguishes the following faults from HardFault:
         //
@@ -604,7 +605,7 @@ pub fn start_first_task(tick_divisor: u32, task: &mut task::Task) -> ! {
 
         // Configure the priority of all external interrupts so that they can't
         // preempt the kernel.
-        let nvic = &*cortex_m::peripheral::NVIC::ptr();
+        let nvic = &*cortex_m::peripheral::NVIC::PTR;
 
         cfg_if::cfg_if! {
             if #[cfg(armv6m)] {
@@ -648,7 +649,7 @@ pub fn start_first_task(tick_divisor: u32, task: &mut task::Task) -> ! {
     // Safety: this, too, is safe in practice but unsafe in API.
     unsafe {
         // Configure the timer.
-        let syst = &*cortex_m::peripheral::SYST::ptr();
+        let syst = &*cortex_m::peripheral::SYST::PTR;
         // Program reload value.
         syst.rvr.write(tick_divisor - 1);
         // Clear current value.
@@ -662,7 +663,7 @@ pub fn start_first_task(tick_divisor: u32, task: &mut task::Task) -> ! {
     let mpu = unsafe {
         // At least by not taking a &mut we're confident we're not violating
         // aliasing....
-        &*cortex_m::peripheral::MPU::ptr()
+        &*cortex_m::peripheral::MPU::PTR
     };
 
     const ENABLE: u32 = 0b001;
@@ -713,7 +714,7 @@ pub fn start_first_task(tick_divisor: u32, task: &mut task::Task) -> ! {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
             unsafe {
-                asm!("
+                arch::asm!("
                     @ restore the callee-save registers
                     ldm r0!, {{r4-r7}}
                     ldm r0, {{r0-r3}}
@@ -731,7 +732,7 @@ pub fn start_first_task(tick_divisor: u32, task: &mut task::Task) -> ! {
             }
         } else if #[cfg(any(armv7m, armv8m))] {
             unsafe {
-                asm!("
+                arch::asm!("
                     @ Restore callee-save registers.
                     ldm {task}, {{r4-r11}}
                     @ Trap into the kernel.
@@ -776,7 +777,7 @@ pub unsafe extern "C" fn SVCall() {
     unsafe {
         cfg_if::cfg_if! {
             if #[cfg(armv6m)] {
-                asm!("
+                arch::asm!("
                     @ Inspect LR to figure out the caller's mode.
                     mov r0, lr
                     ldr r1, =0xFFFFFFF3
@@ -850,7 +851,7 @@ pub unsafe extern "C" fn SVCall() {
                     options(noreturn),
                 )
             } else if #[cfg(any(armv7m, armv8m))] {
-                asm!("
+                arch::asm!("
                     @ Inspect LR to figure out the caller's mode.
                     mov r0, lr
                     mov r1, #0xFFFFFFF3
@@ -1003,7 +1004,7 @@ pub unsafe extern "C" fn PendSV() {
     unsafe {
         cfg_if::cfg_if! {
             if #[cfg(armv6m)] {
-                asm!(
+                arch::asm!(
                     "
                     @ store volatile state.
                     @ first, get a pointer to the current task.
@@ -1049,7 +1050,7 @@ pub unsafe extern "C" fn PendSV() {
                     options(noreturn),
                 );
             } else if #[cfg(any(armv7m, armv8m))] {
-                asm!(
+                arch::asm!(
                     "
                     @ store volatile state.
                     @ first, get a pointer to the current task.
@@ -1122,7 +1123,7 @@ pub unsafe extern "C" fn DefaultHandler() {
     // Safety: we're just reading the PSR.
     let exception_num = unsafe {
         let mut ipsr: u32;
-        asm!(
+        arch::asm!(
             "mrs {}, IPSR",
             out(reg) ipsr,
             options(pure, nomem, preserves_flags, nostack),
@@ -1172,7 +1173,7 @@ pub unsafe extern "C" fn DefaultHandler() {
 
 pub fn disable_irq(n: u32) {
     // Disable the interrupt by poking the Interrupt Clear Enable Register.
-    let nvic = unsafe { &*cortex_m::peripheral::NVIC::ptr() };
+    let nvic = unsafe { &*cortex_m::peripheral::NVIC::PTR };
     let reg_num = (n / 32) as usize;
     let bit_mask = 1 << (n % 32);
     unsafe {
@@ -1182,7 +1183,7 @@ pub fn disable_irq(n: u32) {
 
 pub fn enable_irq(n: u32) {
     // Enable the interrupt by poking the Interrupt Set Enable Register.
-    let nvic = unsafe { &*cortex_m::peripheral::NVIC::ptr() };
+    let nvic = unsafe { &*cortex_m::peripheral::NVIC::PTR };
     let reg_num = (n / 32) as usize;
     let bit_mask = 1 << (n % 32);
     unsafe {
@@ -1203,7 +1204,7 @@ enum FaultType {
 #[cfg(any(armv7m, armv8m))]
 unsafe extern "C" fn configurable_fault() {
     unsafe {
-        asm!(
+        arch::asm!(
             "
             @ Read the current task pointer.
             movw r0, #:lower16:CURRENT_TASK_PTR
@@ -1267,7 +1268,7 @@ pub unsafe extern "C" fn MemoryManagement() {
     // Safety: this is merely a call (a tailcall, really) to a different handler
     // -- we're doing it this way simply because the other handler does context
     // save, so we can't go up into Rust here.
-    unsafe { asm!("b {0}", sym configurable_fault, options(noreturn)) }
+    unsafe { arch::asm!("b {0}", sym configurable_fault, options(noreturn)) }
 }
 
 /// Initial entry point for handling a bus fault.
@@ -1279,7 +1280,7 @@ pub unsafe extern "C" fn BusFault() {
     // Safety: this is merely a call (a tailcall, really) to a different handler
     // -- we're doing it this way simply because the other handler does context
     // save, so we can't go up into Rust here.
-    unsafe { asm!("b {0}", sym configurable_fault, options(noreturn)) }
+    unsafe { arch::asm!("b {0}", sym configurable_fault, options(noreturn)) }
 }
 
 /// Initial entry point for handling a usage fault.
@@ -1291,7 +1292,7 @@ pub unsafe extern "C" fn UsageFault() {
     // Safety: this is merely a call (a tailcall, really) to a different handler
     // -- we're doing it this way simply because the other handler does context
     // save, so we can't go up into Rust here.
-    unsafe { asm!("b {0}", sym configurable_fault, options(noreturn)) }
+    unsafe { arch::asm!("b {0}", sym configurable_fault, options(noreturn)) }
 }
 
 /// Initial entry point for handling a hard fault (ARMv6).
@@ -1301,7 +1302,7 @@ pub unsafe extern "C" fn UsageFault() {
 #[cfg(armv6m)]
 pub unsafe extern "C" fn HardFault() {
     unsafe {
-        asm!(
+        arch::asm!(
             "
             @ Read the current task pointer.
             ldr r0, =CURRENT_TASK_PTR
@@ -1477,7 +1478,7 @@ unsafe extern "C" fn handle_fault(
     // reference, so we shouldn't be breaking any rules by doing this. Arguably
     // this should be available as a safe operation in the cortex_m crate, but
     // that crate comes with _ideas_ about peripheral ownership management.
-    let scb = unsafe { &*cortex_m::peripheral::SCB::ptr() };
+    let scb = unsafe { &*cortex_m::peripheral::SCB::PTR };
     let cfsr = Cfsr::from_bits_truncate(scb.cfsr.read());
 
     // Who faulted? Collect some parameters from the task.
@@ -1581,7 +1582,7 @@ unsafe extern "C" fn handle_fault(
         // Context Control register.
         const LSPACT: u32 = 1 << 0;
         unsafe {
-            let fpu = &*cortex_m::peripheral::FPU::ptr();
+            let fpu = &*cortex_m::peripheral::FPU::PTR;
             fpu.fpccr.modify(|x| x & !LSPACT);
         }
     }
@@ -1593,7 +1594,7 @@ unsafe extern "C" fn handle_fault(
     // points to a correctly aligned area large enough to store 16 floats -- a
     // property our caller is required to ensure -- this is ok.
     unsafe {
-        asm!("vstm {0}, {{s16-s31}}", in(reg) fpsave);
+        arch::asm!("vstm {0}, {{s16-s31}}", in(reg) fpsave);
     }
 
     // We are now going to force a fault on our current task and directly

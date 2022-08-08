@@ -25,7 +25,8 @@
 //! See: https://github.com/rust-lang/rust/issues/73450#issuecomment-650463347
 
 #![no_std]
-#![feature(asm)]
+#![feature(asm_const)]
+#![feature(asm_sym)]
 #![feature(naked_functions)]
 
 #[macro_use]
@@ -36,6 +37,7 @@ pub use num_derive::{FromPrimitive, ToPrimitive};
 pub use num_traits::{FromPrimitive, ToPrimitive};
 pub use unwrap_lite::UnwrapLite;
 
+use core::arch;
 use core::marker::PhantomData;
 
 pub mod hl;
@@ -157,7 +159,7 @@ struct SendArgs<'a> {
 unsafe extern "C" fn sys_send_stub(_args: &mut SendArgs<'_>) -> RcLen {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r7, lr}}
                 mov r4, r8
@@ -194,7 +196,7 @@ unsafe extern "C" fn sys_send_stub(_args: &mut SendArgs<'_>) -> RcLen {
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r11}}
                 @ Load in args from the struct.
@@ -341,7 +343,7 @@ unsafe extern "C" fn sys_recv_stub(
 ) -> u32 {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r7, lr}}
                 mov r4, r8
@@ -387,7 +389,7 @@ unsafe extern "C" fn sys_recv_stub(
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r11}}
                 @ Move register arguments into their proper positions.
@@ -456,7 +458,7 @@ unsafe extern "C" fn sys_reply_stub(
 ) {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff. Note
                 @ that we're being clever and pushing only the registers we
                 @ need; this means the pop sequence at the end needs to match!
@@ -488,7 +490,7 @@ unsafe extern "C" fn sys_reply_stub(
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff. Note
                 @ that we're being clever and pushing only the registers we
                 @ need; this means the pop sequence at the end needs to match!
@@ -555,7 +557,7 @@ unsafe extern "C" fn sys_set_timer_stub(
 ) {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r7, lr}}
                 mov r4, r11
@@ -585,7 +587,7 @@ unsafe extern "C" fn sys_set_timer_stub(
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r7, r11, lr}}
 
@@ -638,7 +640,7 @@ pub fn sys_borrow_read(
 unsafe extern "C" fn sys_borrow_read_stub(_args: *mut BorrowReadArgs) -> RcLen {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r7, lr}}
                 mov r4, r8
@@ -671,7 +673,7 @@ unsafe extern "C" fn sys_borrow_read_stub(_args: *mut BorrowReadArgs) -> RcLen {
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r8, r11}}
 
@@ -735,7 +737,7 @@ unsafe extern "C" fn sys_borrow_write_stub(
 ) -> RcLen {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r7, lr}}
                 mov r4, r8
@@ -769,7 +771,7 @@ unsafe extern "C" fn sys_borrow_write_stub(
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r8, r11}}
 
@@ -854,7 +856,7 @@ unsafe extern "C" fn sys_borrow_info_stub(
 ) {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r6, lr}}
                 mov r4, r11
@@ -883,7 +885,7 @@ unsafe extern "C" fn sys_borrow_info_stub(
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r6, r11}}
 
@@ -926,7 +928,7 @@ pub fn sys_irq_control(mask: u32, enable: bool) {
 unsafe extern "C" fn sys_irq_control_stub(_mask: u32, _enable: u32) {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4, r5, lr}}
                 mov r4, r11
@@ -954,7 +956,7 @@ unsafe extern "C" fn sys_irq_control_stub(_mask: u32, _enable: u32) {
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4, r5, r11, lr}}
 
@@ -993,7 +995,7 @@ pub fn sys_panic(msg: &[u8]) -> ! {
 unsafe extern "C" fn sys_panic_stub(_msg: *const u8, _len: usize) -> ! {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ We're not going to return, so technically speaking we don't
                 @ need to save registers. However, we save them anyway, so that
                 @ we can reconstruct the state that led to the panic.
@@ -1017,7 +1019,7 @@ unsafe extern "C" fn sys_panic_stub(_msg: *const u8, _len: usize) -> ! {
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ We're not going to return, so technically speaking we don't
                 @ need to save registers. However, we save them anyway, so that
                 @ we can reconstruct the state that led to the panic.
@@ -1103,7 +1105,7 @@ struct RawTimerState {
 unsafe extern "C" fn sys_get_timer_stub(_out: *mut RawTimerState) {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r7, lr}}
                 mov r4, r8
@@ -1136,7 +1138,7 @@ unsafe extern "C" fn sys_get_timer_stub(_out: *mut RawTimerState) {
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4-r11}}
                 @ Load the constant syscall number.
@@ -1175,7 +1177,7 @@ pub unsafe extern "C" fn _start() -> ! {
 
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Copy data initialization image into data section.
                 @ Note: this assumes that both source and destination are 32-bit
                 @ aligned and padded to 4-byte boundary.
@@ -1225,7 +1227,7 @@ pub unsafe extern "C" fn _start() -> ! {
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Copy data initialization image into data section.
                 @ Note: this assumes that both source and destination are 32-bit
                 @ aligned and padded to 4-byte boundary.
@@ -1462,7 +1464,7 @@ pub fn sys_refresh_task_id(task_id: TaskId) -> TaskId {
 unsafe extern "C" fn sys_refresh_task_id_stub(_tid: u32) -> u32 {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 @ match!
                 push {{r4, r5, lr}}
@@ -1492,7 +1494,7 @@ unsafe extern "C" fn sys_refresh_task_id_stub(_tid: u32) -> u32 {
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4, r5, r11, lr}}
 
@@ -1531,7 +1533,7 @@ pub fn sys_post(task_id: TaskId, bits: u32) -> u32 {
 unsafe extern "C" fn sys_post_stub(_tid: u32, _mask: u32) -> u32 {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4, r5, lr}}
                 mov r4, r11
@@ -1561,7 +1563,7 @@ unsafe extern "C" fn sys_post_stub(_tid: u32, _mask: u32) -> u32 {
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4, r5, r11, lr}}
 
@@ -1601,7 +1603,7 @@ pub fn sys_reply_fault(task_id: TaskId, reason: ReplyFaultReason) {
 unsafe extern "C" fn sys_reply_fault_stub(_tid: u32, _reason: u32) {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4, r5, lr}}
                 mov r4, r11
@@ -1629,7 +1631,7 @@ unsafe extern "C" fn sys_reply_fault_stub(_tid: u32, _reason: u32) {
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            arch::asm!("
                 @ Spill the registers we're about to use to pass stuff.
                 push {{r4, r5, r11, lr}}
 
