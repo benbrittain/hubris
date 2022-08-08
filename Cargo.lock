@@ -546,6 +546,7 @@ dependencies = [
  "nrf52840-pac",
  "panic-halt",
  "panic-itm",
+ "panic-semihosting",
 ]
 
 [[package]]
