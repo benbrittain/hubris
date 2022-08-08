@@ -8,13 +8,14 @@ Interface(
             doc: "Unqueues an incoming packet from a socket.",
             args: {
                 "socket": "SocketName",
+                "large_payload_behavior": "LargePayloadBehavior",
             },
             leases: {
                 "payload": (type: "[u8]", write: true),
             },
             reply: Result(
                 ok: "UdpMetadata",
-                err: CLike("NetError"),
+                err: CLike("RecvError"),
             ),
         ),
         "send_packet": (
@@ -29,7 +30,7 @@ Interface(
             },
             reply: Result(
                 ok: "()",
-                err: CLike("NetError"),
+                err: CLike("SendError"),
             ),
         ),
         "smi_read": (
@@ -53,6 +54,31 @@ Interface(
             reply: Result(
                 ok: "()",
                 err: ServerDeath,
+            ),
+        ),
+        "read_phy_reg": (
+            doc: "Read a register from the PHY associated with a particular port",
+            args: {
+                "port": "u8",
+                "page": "u16",
+                "reg": "u8",
+            },
+            reply: Result(
+                ok: "u16",
+                err: CLike("PhyError"),
+            ),
+        ),
+        "write_phy_reg": (
+            doc: "Writes a register in the PHY associated with a particular port",
+            args: {
+                "port": "u8",
+                "page": "u16",
+                "reg": "u8",
+                "value": "u16",
+            },
+            reply: Result(
+                ok: "()",
+                err: CLike("PhyError"),
             ),
         ),
     },

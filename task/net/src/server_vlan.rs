@@ -4,10 +4,8 @@
 
 //! Network IPC server implementation with VLAN support
 //!
-//! This module implements a server which listens on a single IPv6 address
-//! and supports some number of VLANs
-//!
-//! TODO: one IPv6 address per VLAN?
+//! This module implements a server which listens on multiple (incrementing)
+//! IPv6 addresses and supports some number of VLANs.
 
 use drv_stm32h7_eth as eth;
 
@@ -17,10 +15,13 @@ use smoltcp::socket::UdpSocket;
 use smoltcp::wire::{
     EthernetAddress, IpAddress, IpCidr, Ipv6Address, Ipv6Cidr,
 };
-use task_net_api::{NetError, SocketName, UdpMetadata};
+use task_net_api::{
+    LargePayloadBehavior, RecvError, SendError, SocketName, UdpMetadata,
+};
 use userlib::{sys_post, sys_refresh_task_id};
 
 use crate::generated::{self, SOCKET_COUNT, VLAN_COUNT, VLAN_RANGE};
+use crate::server::NetServer;
 use crate::{idl, ETH_IRQ, NEIGHBORS, WAKE_IRQ};
 
 type NeighborStorage = Option<(IpAddress, Neighbor)>;
@@ -247,14 +248,12 @@ impl<'a> ServerImpl<'a> {
         &self,
         index: usize,
         vlan_index: usize,
-    ) -> Result<SocketHandle, RequestError<NetError>> {
+    ) -> Result<SocketHandle, ClientError> {
         self.socket_handles
             .get(vlan_index)
-            .ok_or(RequestError::Fail(ClientError::BadMessageContents))
+            .ok_or(ClientError::BadMessageContents)
             .and_then(|s| {
-                s.get(index)
-                    .cloned()
-                    .ok_or(RequestError::Fail(ClientError::BadMessageContents))
+                s.get(index).cloned().ok_or(ClientError::BadMessageContents)
             })
     }
 
@@ -268,89 +267,103 @@ impl<'a> ServerImpl<'a> {
         &mut self,
         index: usize,
         vlan_index: usize,
-    ) -> Result<&mut UdpSocket<'a>, RequestError<NetError>> {
+    ) -> Result<&mut UdpSocket<'a>, ClientError> {
         Ok(self.ifaces[vlan_index]
             .get_socket::<UdpSocket>(self.get_handle(index, vlan_index)?))
     }
 }
 
 /// Implementation of the Net Idol interface.
-impl idl::InOrderNetImpl for ServerImpl<'_> {
+impl NetServer for ServerImpl<'_> {
     /// Requests that a packet waiting in the rx queue of `socket` be delivered
     /// into loaned memory at `payload`.
     ///
     /// If a packet is available and fits, copies it into `payload` and returns
     /// its `UdpMetadata`. Otherwise, leaves `payload` untouched and returns an
     /// error.
-    fn recv_packet(
+    fn net_recv_packet(
         &mut self,
         msg: &userlib::RecvMessage,
         socket: SocketName,
+        large_payload_behavior: LargePayloadBehavior,
         payload: idol_runtime::Leased<idol_runtime::W, [u8]>,
-    ) -> Result<UdpMetadata, RequestError<NetError>> {
+    ) -> Result<UdpMetadata, RequestError<RecvError>> {
         let socket_index = socket as usize;
 
         if generated::SOCKET_OWNERS[socket_index].0.index()
             != msg.sender.index()
         {
-            return Err(NetError::NotYours.into());
+            return Err(RecvError::NotYours.into());
         }
 
         // Iterate over all of the per-VLAN sockets, returning the first
         // available packet with a bonus `vid` tag attached in the metadata.
         for (i, vid) in VLAN_RANGE.enumerate() {
-            let socket = self.get_socket_mut(socket_index, i)?;
-            match socket.recv() {
-                Ok((body, endp)) => {
-                    if payload.len() < body.len() {
-                        return Err(RequestError::Fail(ClientError::BadLease));
-                    }
-                    payload
-                        .write_range(0..body.len(), body)
-                        .map_err(|_| RequestError::went_away())?;
+            let socket = self
+                .get_socket_mut(socket_index, i)
+                .map_err(RequestError::Fail)?;
+            loop {
+                match socket.recv() {
+                    Ok((body, endp)) => {
+                        if payload.len() < body.len() {
+                            match large_payload_behavior {
+                                LargePayloadBehavior::Discard => continue,
+                                // If we add a `::Fail` case, we will need to
+                                // allow for caller retries (possibly by peeking
+                                // on the socket instead of recving)
+                            }
+                        }
+                        payload
+                            .write_range(0..body.len(), body)
+                            .map_err(|_| RequestError::went_away())?;
 
-                    return Ok(UdpMetadata {
-                        port: endp.port,
-                        size: body.len() as u32,
-                        addr: endp.addr.try_into().map_err(|_| ()).unwrap(),
-                        vid,
-                    });
-                }
-                Err(smoltcp::Error::Exhausted) => {
-                    // Keep iterating
-                }
-                Err(_) => {
-                    // uhhhh TODO
-                    // (keep iterating in the meantime)
+                        return Ok(UdpMetadata {
+                            port: endp.port,
+                            size: body.len() as u32,
+                            addr: endp.addr.try_into().map_err(|_| ()).unwrap(),
+                            vid,
+                        });
+                    }
+                    Err(smoltcp::Error::Exhausted) => {
+                        // Move on to next vid
+                        break;
+                    }
+                    Err(_) => {
+                        // uhhhh TODO
+                        // (move on to next vid in the meantime)
+                        break;
+                    }
                 }
             }
         }
-        Err(NetError::QueueEmpty.into())
+        Err(RecvError::QueueEmpty.into())
     }
 
     /// Requests to copy a packet into the tx queue of socket `socket`,
     /// described by `metadata` and containing the bytes loaned in `payload`.
-    fn send_packet(
+    fn net_send_packet(
         &mut self,
         msg: &userlib::RecvMessage,
         socket: SocketName,
         metadata: UdpMetadata,
         payload: idol_runtime::Leased<idol_runtime::R, [u8]>,
-    ) -> Result<(), RequestError<NetError>> {
+    ) -> Result<(), RequestError<SendError>> {
         let socket_index = socket as usize;
         if generated::SOCKET_OWNERS[socket_index].0.index()
             != msg.sender.index()
         {
-            return Err(NetError::NotYours.into());
+            return Err(SendError::NotYours.into());
         }
 
         // Convert from absolute VID to an index in our VLAN array
         if !VLAN_RANGE.contains(&metadata.vid) {
-            return Err(NetError::InvalidVLan.into());
+            return Err(SendError::InvalidVLan.into());
         }
         let vlan_index = metadata.vid - VLAN_RANGE.start;
 
-        let socket = self.get_socket_mut(socket_index, vlan_index as usize)?;
+        let socket = self
+            .get_socket_mut(socket_index, vlan_index as usize)
+            .map_err(RequestError::Fail)?;
         match socket.send(payload.len(), metadata.into()) {
             Ok(buf) => {
                 payload
@@ -361,35 +374,17 @@ impl idl::InOrderNetImpl for ServerImpl<'_> {
             }
             Err(smoltcp::Error::Exhausted) => {
                 self.client_waiting_to_send[socket_index] = true;
-                Err(NetError::QueueFull.into())
+                Err(SendError::QueueFull.into())
             }
             Err(_e) => {
                 // uhhhh TODO
-                Err(NetError::Other.into())
+                Err(SendError::Other.into())
             }
         }
     }
 
-    fn smi_read(
-        &mut self,
-        _msg: &userlib::RecvMessage,
-        phy: u8,
-        register: u8,
-    ) -> Result<u16, idol_runtime::RequestError<core::convert::Infallible>>
-    {
-        // TODO: this should not be open to all callers!
-        Ok(self.eth.smi_read(phy, register))
-    }
-
-    fn smi_write(
-        &mut self,
-        _msg: &userlib::RecvMessage,
-        phy: u8,
-        register: u8,
-        value: u16,
-    ) -> Result<(), idol_runtime::RequestError<core::convert::Infallible>> {
-        // TODO: this should not be open to all callers!
-        Ok(self.eth.smi_write(phy, register, value))
+    fn eth_bsp(&mut self) -> (&eth::Ethernet, &mut crate::bsp::Bsp) {
+        (self.eth, &mut self.bsp)
     }
 }
 

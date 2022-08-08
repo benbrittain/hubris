@@ -12,7 +12,10 @@ use gateway_messages::{
     SpMessageKind, SpPort,
 };
 use ringbuf::{ringbuf, ringbuf_entry};
-use task_net_api::{Address, Net, NetError, SocketName, UdpMetadata};
+use task_net_api::{
+    Address, LargePayloadBehavior, Net, RecvError, SendError, SocketName,
+    UdpMetadata,
+};
 use tinyvec::ArrayVec;
 use userlib::{
     sys_get_timer, sys_irq_control, sys_recv_closed, sys_set_timer, task_slot,
@@ -32,7 +35,7 @@ enum Log {
     Wake(u32),
     Rx(UdpMetadata),
     DispatchError(MgsDispatchError),
-    SendError(NetError),
+    SendError(SendError),
     MgsMessage(MgsMessage),
     UsartTx { num_bytes: usize },
     UsartTxFull { remaining: usize },
@@ -239,7 +242,7 @@ impl NetHandler {
                     &self.tx_buf[..meta.size as usize],
                 ) {
                     Ok(()) => (),
-                    Err(err @ NetError::QueueFull) => {
+                    Err(err @ SendError::QueueFull) => {
                         ringbuf_entry!(Log::SendError(err));
 
                         // "Re-enqueue" packet and return; we'll wait until
@@ -274,19 +277,18 @@ impl NetHandler {
             }
 
             // All sending is complete; check for an incoming packet.
-            match self.net.recv_packet(SOCKET, &mut self.rx_buf) {
+            match self.net.recv_packet(
+                SOCKET,
+                LargePayloadBehavior::Discard,
+                &mut self.rx_buf,
+            ) {
                 Ok(meta) => {
                     self.handle_received_packet(meta, mgs_handler);
                 }
-                Err(NetError::QueueEmpty) => {
+                Err(RecvError::QueueEmpty) => {
                     return;
                 }
-                Err(
-                    NetError::NotYours
-                    | NetError::InvalidVLan
-                    | NetError::QueueFull
-                    | NetError::Other,
-                ) => panic!(),
+                Err(RecvError::NotYours | RecvError::Other) => panic!(),
             }
         }
     }
