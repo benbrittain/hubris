@@ -67,6 +67,8 @@ members = [
     "task/validate-api",
     "task/vsc7448",
 
+    "drv/nrf52-spi",
+    "drv/nrf52-spi-server",
     "drv/sensirion-sps32",
 
     "drv/stm32fx-rcc",

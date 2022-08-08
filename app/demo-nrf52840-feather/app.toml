@@ -55,7 +55,9 @@ start = true
 path = "../../drv/nrf52-gpio/"
 name = "drv-nrf52840-gpio"
 priority = 2
-requires = {flash = 1024, ram = 1024}
+requires = {flash = 8192, ram = 4096}
+features = ["userlib/log-itm"]
+stacksize = 2048
 start = true
 uses = ["gpio0"]
 
@@ -67,3 +69,48 @@ requires = {flash = 16384, ram = 1024}
 start = true
 task-slots = ["gpio"]
 features = ["itm"]
+
+[tasks.spi]
+path = "../../drv/nrf52-spi-server"
+name = "drv-nrf52-spi-server"
+priority = 2
+requires = {flash = 16384, ram = 2048}
+features = ["spi0", "userlib/log-itm"]
+uses = ["spi0"]
+start = true
+stacksize = 880
+task-slots = ["gpio"]
+
+[tasks.spi.config.spi]
+global_config = "spi0"
+
+[tasks.bme688]
+path = "../../task/bme688"
+name = "task-bme688"
+priority = 4
+requires = {flash = 16384, ram = 1024}
+start = true
+task-slots = ["gpio", "spi"]
+features = ["itm"]
+
+
+[config]
+
+[config.spi.spi0]
+controller = 0
+
+[config.spi.spi0.mux_options.bme688]
+miso_port = 0
+miso_pin = 15
+mosi_port = 0
+mosi_pin = 13
+sck_port = 0
+sck_pin = 14
+
+[config.spi.spi0.devices.bme688]
+mux = "bme688"
+cs_port = 0
+cs_pin = 8
+frequency = "M8"
+spi_mode = 3
+

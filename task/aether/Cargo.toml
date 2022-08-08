@@ -23,7 +23,7 @@ hubris-num-tasks = {path = "../../sys/num-tasks", features = ["task-enum"]}
 version = "*"
 default-features = false
 features = [
-  "verbose", "log", "proto-sixlowpan", "socket-udp", "medium-ieee802154"
+  "verbose", "log", "proto-sixlowpan", "proto-sixlowpan-fragmentation", "socket-tcp", "socket-udp", "medium-ieee802154"
 ]
 
 [build-dependencies]

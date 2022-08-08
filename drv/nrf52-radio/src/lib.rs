@@ -15,12 +15,11 @@ use smoltcp::{
     Result,
 };
 use task_aether_api::*;
-use userlib::sys_log;
 
-mod buffer;
 mod phy;
+mod ringbuf;
 
-use buffer::{RecvPacketBuffer, PacketBuffer};
+use ringbuf::{RingBufferRx, RingBufferTx};
 
 /// Mask of known bytes in ACK packet
 pub const MHMU_MASK: u32 = 0xff000700;
@@ -74,9 +73,10 @@ enum RadioState {
 /// Interface to the radio peripheral.
 pub struct Radio<'a> {
     radio: &'a device::radio::RegisterBlock,
-    transmit_buffer: PacketBuffer,
-    receive_buffer: RecvPacketBuffer,
+    transmit_buffer: RingBufferTx<8>,
+    receive_buffer: RingBufferRx<4>,
     mode: UnsafeCell<DriverState>,
+    done_transmit_dbg: Cell<bool>,
 }
 
 impl Radio<'_> {
@@ -85,9 +85,10 @@ impl Radio<'_> {
 
         Radio {
             radio,
-            transmit_buffer: PacketBuffer::new(),
-            receive_buffer: RecvPacketBuffer::new(),
+            transmit_buffer: RingBufferTx::<8>::new(),
+            receive_buffer: RingBufferRx::<4>::new(),
             mode: UnsafeCell::new(DriverState::Sleep),
+            done_transmit_dbg: Cell::new(false),
         }
     }
 
@@ -136,20 +137,19 @@ impl Radio<'_> {
 
     /// Point the EasyDMA engine at a valid memory region
     /// for receptionand transmission of packets.
-    fn configure_packet_buffer(&self, buf: &PacketBuffer) {
+    fn configure_packet_buffer(&self, buf: &RingBufferTx<8>) {
         buf.set_as_buffer(&self);
     }
 
     /// Point the EasyDMA engine at a valid memory region
     /// for receptionand transmission of packets.
-    fn configure_packet_buffer_recv(&self, buf: &RecvPacketBuffer) {
+    fn configure_packet_buffer_recv(&self, buf: &RingBufferRx<4>) {
         buf.set_as_buffer(&self);
     }
 
     /// IEEE 802.15.4 implements a listen-before-talk channel access method
     /// to avoid collisions when transmitting.
     fn configure_cca(&self) {
-        // not sure if this is right, look more into this.
         self.radio
             .ccactrl
             .write(|w| w.ccamode().carrier_and_ed_mode());
@@ -170,7 +170,7 @@ impl Radio<'_> {
         self.radio.crcinit.write(|w| unsafe { w.crcinit().bits(0) });
     }
 
-    /// IEEE 802.15.4 uses packets of max 127 bytes with a 32bit
+    /// IEEE 802.15.4 uses packets of max 255 bytes with a 32bit
     /// all-zero preamble and crc included as part of the frame.
     fn configure_packets(&self) {
         self.radio.mode.write(|w| w.mode().ieee802154_250kbit());
@@ -182,7 +182,6 @@ impl Radio<'_> {
     }
 
     pub fn initialize(&self) {
-        //sys_log!("Initializing Radio...");
         // Setup high frequency clocks.
         self.initialize_clocks();
 
@@ -206,7 +205,7 @@ impl Radio<'_> {
         // TODO don't hard code this.
         self.radio
             .frequency
-            .write(|w| unsafe { w.frequency().bits(15) });
+            .write(|w| unsafe { w.frequency().bits(45) });
 
         // Configure radio to transmit at 4db
         // TODO don't hard code this.
@@ -220,13 +219,8 @@ impl Radio<'_> {
             .write(|w| unsafe { w.txaddress().bits(0) });
         self.radio.rxaddresses.write(|w| w.addr0().set_bit());
 
-        // TODO
         // enable fast ramp up
         self.radio.modecnf0.write(|w| w.ru().set_bit());
-
-        // Disable MAC header matching
-        // radio.mhrmatchconf.write(|w| unsafe { w.bits(0) });
-        // radio.mhrmatchmas.write(|w| unsafe { w.bits(MHMU_MASK) });
 
         // Start receiving...
         self.start_recv();
@@ -250,7 +244,15 @@ impl Radio<'_> {
     }
 
     pub fn can_recv(&mut self) -> bool {
-        self.receive_buffer.has_packets()
+        !self.receive_buffer.is_empty()
+    }
+
+    pub fn can_send(&mut self) -> bool {
+        // notice this is the reverse of can_recv
+        // we can only send from the perspective of smoltcp when the transmit
+        // buffer is empty, but from smoltcp's perspective we need packets into
+        // the recieve buffer to be conceptually capable of recieving.
+        !self.transmit_buffer.is_full()
     }
 
     /// If we've gotten a packet, send it to smoltcp
@@ -259,13 +261,7 @@ impl Radio<'_> {
         &self,
         read_buffer: impl FnOnce(&mut [u8]) -> R,
     ) -> Option<R> {
-        //sys_log!("Trying to receive...");
         self.receive_buffer.read(read_buffer)
-    }
-
-    pub fn can_send(&mut self) -> bool {
-        // TODO check if buffer is full!!
-        true
     }
 
     /// Tries to send a packet, if TX buffer space is available.
@@ -274,7 +270,6 @@ impl Radio<'_> {
         len: usize,
         build_packet: impl FnOnce(&mut [u8]) -> R,
     ) -> Option<R> {
-        //sys_log!("Trying to send ...");
         let resp = self.transmit_buffer.write(build_packet, len);
         self.start_transmit();
         resp
@@ -315,10 +310,10 @@ impl Radio<'_> {
 
     /// Transition radio into transmit state
     pub fn start_transmit(&self) {
-        sys_log!("SEND");
-        //sys_log!("starting transmit from state: {:?}", self.get_state());
         self.turn_off();
         self.set_mode(DriverState::CcaTx);
+        userlib::hl::sleep_for(40);
+        userlib::sys_log!("transmit");
 
         self.configure_packet_buffer(&self.transmit_buffer);
         self.initialize();
@@ -326,15 +321,31 @@ impl Radio<'_> {
 
     /// Transition radio into receive state
     pub fn start_recv(&self) {
-        sys_log!("RECV");
-//        sys_log!("Starting recieve...");
         self.radio.events_ready.reset();
 
         match self.get_driver_state() {
             // we always start recieving if starting from a sleep state
-            DriverState::Sleep | DriverState::Rx => {
+            DriverState::Sleep => {
                 self.set_mode(DriverState::Rx);
                 self.configure_packet_buffer_recv(&self.receive_buffer);
+            }
+            DriverState::Rx => {
+                if self.get_state() == RadioState::RxIdle {
+                    self.configure_packet_buffer_recv(&self.receive_buffer);
+                    self.radio.tasks_start.write(|w| w.tasks_start().set_bit());
+                    return;
+                } else if self.get_state() == RadioState::TxIdle {
+                    self.turn_off();
+                    self.initialize();
+                    self.set_mode(DriverState::Rx);
+                    self.configure_packet_buffer_recv(&self.receive_buffer);
+                    // don't do anything
+                } else {
+                    panic!(
+                        "can't start from Rx driver state with command of {:?}",
+                        self.get_state()
+                    );
+                }
             }
             DriverState::CcaTx => {
                 self.configure_packet_buffer(&self.transmit_buffer);
@@ -349,7 +360,6 @@ impl Radio<'_> {
     fn set_mode(&self, mode: DriverState) {
         unsafe {
             let old_mode = (*self.mode.get());
-            // sys_log!("MODE - {:?} -> {:?}", old_mode, mode);
             (*self.mode.get()) = mode;
         }
     }
@@ -367,7 +377,6 @@ impl Radio<'_> {
     }
     pub fn handle_interrupt(&mut self) {
         self.disable_interrupts();
-        sys_log!("interrupt!");
 
         if self
             .radio
@@ -376,7 +385,6 @@ impl Radio<'_> {
             .events_ccabusy()
             .bit_is_set()
         {
-//            sys_log!("IRQ - Wireless medium busy - do not send");
             self.radio.events_ccabusy.reset();
         }
 
@@ -387,7 +395,6 @@ impl Radio<'_> {
             .events_ccaidle()
             .bit_is_set()
         {
-//            sys_log!("IRQ - Wireless medium in idle - clear to send");
             self.radio.events_ccaidle.reset();
             self.set_mode(DriverState::Tx);
             self.radio.tasks_txen.write(|w| w.tasks_txen().set_bit());
@@ -396,10 +403,6 @@ impl Radio<'_> {
         if self.radio.events_ready.read().events_ready().bit_is_set() {
             // this should always be triggered in conjunction with
             // a tx/rx event ready state
-//            sys_log!(
-//                "IRQ - RADIO has ramped up and is ready to be started {:?}",
-//                self.get_state()
-//            );
             self.radio.events_ready.reset();
             // if not transmitting
             match self.get_driver_state() {
@@ -426,47 +429,34 @@ impl Radio<'_> {
             .events_framestart()
             .bit_is_set()
         {
-//            sys_log!("IRQ - IEEE 802.15.4 length field received");
             self.radio.events_framestart.reset();
         }
 
         if self.radio.events_end.read().events_end().bit_is_set() {
-//            sys_log!("IRQ - Packet sent or received");
             self.radio.events_end.reset();
 
             match self.get_state() {
                 RadioState::RxIdle => {
                     if self.radio.crcstatus.read().crcstatus().is_crcok() {
-                        sys_log!("CRC: OK!");
                         self.receive_buffer.got_packet();
-                        //let buf: &[u8] =
-                        //    unsafe { &*self.receive_buffer.data.get() };
-
-                        //let mut buf =
-                        //    unsafe { (*self.receive_buffer.data.get()) };
-                        //let len = buf[0] as usize;
-                        //if len > 0 {
-
-                        //    self.receive_buffer
-                        //        .completed
-                        //        .fetch_add(1, Ordering::Relaxed);
-                        //    // sys_log!("buf: {:02X?}", &buf[..len]);
-                        //}
                     } else {
-                        sys_log!("CRC: BAD!");
                     }
                 }
                 RadioState::TxIdle => {
+                    self.transmit_buffer.sent_packet();
                     // transition back to Rx
                     self.set_mode(DriverState::Rx);
+                    if !self.transmit_buffer.is_empty() {
+                        self.start_transmit();
+                    }
                 }
                 s => {
                     panic!("Don't know how to handle {:?} during event end", s)
                 }
             }
-            // TODO Don't do a full reset, transition modes here.
-            self.turn_off();
-            self.initialize();
+
+            // transition back to recv
+            self.start_recv();
         }
 
         self.enable_interrupts();

@@ -30,10 +30,10 @@ fn main() -> ! {
     let ip = net.get_addr();
     sys_log!("generated an ip: {:?}", ip);
 
-    let mut rx_data_buf = [0u8; 128];
+    let mut rx_data_buf = [0u8; 512];
     loop {
 
-        sys_log!("RECV");
+        sys_log!("========================= RECV =========================");
         match net.recv_packet(SocketName::ping, &mut rx_data_buf) {
             Ok(meta) => {
                 let addr: smoltcp::wire::IpAddress = meta.addr.into();

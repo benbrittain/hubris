@@ -44,8 +44,8 @@ pub mod task_slot;
 pub mod units;
 pub mod util;
 
-#[cfg(feature = "log-rtt")]
-pub extern crate rtt_target;
+#[cfg(feature = "log-itm")]
+pub extern crate cortex_m;
 
 #[derive(Debug)]
 #[repr(transparent)]

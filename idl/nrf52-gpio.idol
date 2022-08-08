@@ -64,5 +64,21 @@ Interface(
                 err: CLike("GpioError"),
             ),
         ),
+        "set_low": (
+            args: {
+                "port": (
+                    type: "Port",
+                    recv: FromPrimitive("u8"),
+                ),
+                "pin": (
+                    type: "Pin",
+                    recv: FromPrimitive("u8"),
+                ),
+            },
+            reply: Result(
+                ok: "()",
+                err: CLike("GpioError"),
+            ),
+        ),
   }
 )

@@ -5,7 +5,7 @@ edition = "2018"
 
 [features]
 panic-messages = []
-log-itm = []
+log-itm = ["cortex-m"]
 log-semihosting = []
 log-null = []
 
@@ -19,7 +19,8 @@ zerocopy = "0.6.1"
 num-traits = { version = "0.2.12", default-features = false }
 unwrap-lite = { path = "../../lib/unwrap-lite" }
 cfg-if = "0.1.10"
-armv6m-atomic-hack = {path = "../../lib/armv6m-atomic-hack"}
+#armv6m-atomic-hack = {path = "../../lib/armv6m-atomic-hack"}
+cortex-m = { version = "*", optional = true }
 
 #
 # In order to use macros as discriminants in enums that make use of derive

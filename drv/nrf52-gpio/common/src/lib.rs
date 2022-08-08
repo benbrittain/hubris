@@ -3,6 +3,14 @@
 use userlib::FromPrimitive;
 use zerocopy::AsBytes;
 
+#[derive(zerocopy::AsBytes, Copy, Clone, Debug, PartialEq, FromPrimitive)]
+#[repr(C)]
+pub struct Port(pub u8);
+
+#[derive(zerocopy::AsBytes, Copy, Clone, Debug, PartialEq, FromPrimitive)]
+#[repr(C)]
+pub struct Pin(pub u8);
+
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, AsBytes)]
 pub enum Mode {

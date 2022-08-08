@@ -76,8 +76,7 @@ priority = 1
 requires = {flash = 131072, ram = 32768 }
 stacksize = 16384
 start = true
-# features = ["semihosting"]
-features = ["log-null"]
+features = ["itm"]
 uses = ["radio", "ficr", "rng", "clock"]
 interrupts = { "radio.irq" = 1 }
 
@@ -85,9 +84,10 @@ interrupts = { "radio.irq" = 1 }
 path = "../../task/udpecho"
 name = "task-udpecho"
 priority = 3
-requires = {flash = 16384, ram = 8192}
+requires = {flash = 32768, ram = 8192}
 stacksize = 4096
 start = true
+features = ["userlib/log-itm"]
 task-slots = ["aether"]
 
 [tasks.blinky]
@@ -104,7 +104,7 @@ task-slots = ["gpio"]
 # priority = 3
 # requires = {flash = 32768, ram = 16384 }
 # start = true
-# features = ["semihosting"]
+# features = ["itm"]
 # task-slots = ["uart"]
 # stacksize = 8192
 
@@ -113,7 +113,7 @@ task-slots = ["gpio"]
 pan_id = 0x1eaf
 
 [config.aether.sockets.echo]
-kind = "udp"
+kind = "tcp"
 owner = {name = "udpecho", notification = 1}
 port = 7
 tx = { packets = 16, bytes = 1024 }

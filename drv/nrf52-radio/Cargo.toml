@@ -11,6 +11,7 @@ cortex-m = "*"
 cortex-m-semihosting = {version = "*", optional = true}
 log = "*"
 task-aether-api = {path = "../../task/aether/api"}
+array-init="*"
 
 [features]
 itm = [ "userlib/log-itm" ]
@@ -20,7 +21,5 @@ log-null = ["userlib/log-null"]
 [dependencies.smoltcp]
 version = "*"
 default-features = false
-features = [
-  "verbose", "log", "proto-sixlowpan", "socket-udp", "medium-ieee802154"
-]
+features = [ "proto-sixlowpan", "medium-ieee802154" ]
 

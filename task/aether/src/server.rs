@@ -1,60 +1,223 @@
 use idol_runtime::{ClientError, Leased, NotificationHandler, RequestError};
-use smoltcp::iface::{Interface, SocketHandle};
-use smoltcp::socket::udp::{self, Socket};
-
-use task_aether_api::{AetherError, Ipv6Address, Ieee802154Address, SocketName, UdpMetadata};
-use userlib::*;
+use smoltcp::iface::{Interface, SocketHandle, SocketSet};
+use smoltcp::socket::{tcp, udp};
 
 use crate::RADIO_IRQ;
+use task_aether_api::{
+    AetherError, Ieee802154Address, Ipv6Address, SocketName, TcpMetadata,
+    UdpMetadata,
+};
+use userlib::*;
 
 /// Size of buffer that must be allocated to use `dispatch`.
 pub const INCOMING_SIZE: usize = idl::INCOMING_SIZE;
 
+#[derive(Clone, Copy)]
+pub enum SocketHandleType {
+    Udp(SocketHandle),
+    Tcp(SocketHandle),
+}
+
 pub struct AetherServer<'a> {
-    socket_handles: [SocketHandle; crate::generated::SOCKET_COUNT],
-    iface: Interface<'a, nrf52_radio::Radio<'a>>,
+    socket_handles: [SocketHandleType; crate::generated::SOCKET_COUNT],
+    socket_set: SocketSet<'a>,
+    iface: Interface<'a>,
+    device: nrf52_radio::Radio<'a>,
 }
 
 impl<'a> AetherServer<'a> {
     pub fn new(
-        socket_handles: [SocketHandle; crate::generated::SOCKET_COUNT],
-        iface: Interface<'a, nrf52_radio::Radio<'a>>,
+        socket_handles: [SocketHandleType; crate::generated::SOCKET_COUNT],
+        socket_set: SocketSet<'a>,
+        iface: Interface<'a>,
+        device: nrf52_radio::Radio<'a>,
     ) -> Self {
         Self {
             socket_handles,
+            socket_set,
             iface,
+            device,
         }
     }
 
-    /// Borrows a direct reference to the `smoltcp` `Interface` inside the
-    /// server. This is exposed for use by the driver loop in main.
-    pub fn interface_mut(
+    /// Poll the `smoltcp` `Interface`
+    pub fn poll(
         &mut self,
-    ) -> &mut Interface<'a, nrf52_radio::Radio<'a>> {
-        &mut self.iface
+        time: smoltcp::time::Instant,
+    ) -> Result<bool, smoltcp::Error> {
+        self.iface
+            .poll(time, &mut self.device, &mut self.socket_set)
     }
-}
 
-impl<'a> AetherServer<'a> {
-    /// Gets the socket `index`. If `index` is out of range, returns
-    /// `BadMessage`.
-    ///
-    /// All sockets are UDP.
-    pub fn get_socket_mut(
+    /// Gets the udp socket `index`. If `index` is out of range, returns
+    /// `BadMessage`. If the socket is not udp, error
+    pub fn get_udp_socket_mut(
         &mut self,
         index: usize,
-    ) -> Result<&mut Socket<'a>, RequestError<AetherError>> {
+    ) -> Result<&mut udp::Socket<'a>, RequestError<AetherError>> {
         let handle = self
             .socket_handles
             .get(index)
             .cloned()
             .ok_or(RequestError::Fail(ClientError::BadMessageContents))?;
-        Ok(self.iface.get_socket::<Socket>(handle))
+        match handle {
+            SocketHandleType::Udp(handle) => {
+                Ok(self.socket_set.get_mut::<udp::Socket>(handle))
+            }
+            _ => Err(AetherError::WrongSocketType.into()),
+        }
+    }
+    /// Gets the udp socket `index`. If `index` is out of range, returns
+    /// `BadMessage`. If the socket is not udp, error
+    pub fn get_tcp_socket_mut(
+        &mut self,
+        index: usize,
+    ) -> Result<&mut tcp::Socket<'a>, RequestError<AetherError>> {
+        let handle = self
+            .socket_handles
+            .get(index)
+            .cloned()
+            .ok_or(RequestError::Fail(ClientError::BadMessageContents))?;
+        match handle {
+            SocketHandleType::Tcp(handle) => {
+                Ok(self.socket_set.get_mut::<tcp::Socket>(handle))
+            }
+            _ => Err(AetherError::WrongSocketType.into()),
+        }
     }
 }
 
 impl idl::InOrderAetherImpl for AetherServer<'_> {
-    fn recv_packet(
+    fn recv_tcp_data(
+        &mut self,
+        msg: &userlib::RecvMessage,
+        socket: SocketName,
+        payload: Leased<idol_runtime::W, [u8]>,
+    ) -> Result<u32, RequestError<AetherError>> {
+        let socket_index = socket as usize;
+
+        if crate::generated::SOCKET_OWNERS[socket_index].0.index()
+            != msg.sender.index()
+        {
+            return Err(AetherError::WrongOwner.into());
+        }
+        let socket = self.get_tcp_socket_mut(socket_index)?;
+        if socket.may_recv() {
+            match socket.recv(|data| (data.len(), data)) {
+                Ok(data) => {
+                    if data.len() == 0 {
+                        Err(AetherError::QueueEmpty.into())
+                    } else {
+                        if payload.len() < data.len() {
+                            return Err(RequestError::Fail(
+                                ClientError::BadLease,
+                            ));
+                        }
+                        payload
+                            .write_range(0..data.len(), data)
+                            .map_err(|_| RequestError::went_away())?;
+                        Ok(data.len() as u32)
+                    }
+                }
+                e => {
+                    sys_log!("got an unknown error: {:?}", e);
+                    Err(AetherError::Unknown.into())
+                }
+            }
+        } else if socket.may_send() {
+            Err(AetherError::RemoteTcpClose.into())
+        } else {
+            Err(AetherError::QueueEmpty.into())
+        }
+    }
+
+    fn tcp_listen(
+        &mut self,
+        msg: &userlib::RecvMessage,
+        socket: SocketName,
+        port: u16,
+    ) -> Result<(), RequestError<AetherError>> {
+        if crate::generated::SOCKET_OWNERS[socket as usize].0.index()
+            != msg.sender.index()
+        {
+            return Err(AetherError::WrongOwner.into());
+        }
+
+        let socket = self.get_tcp_socket_mut(socket as usize)?;
+        // TODO consider using close and a seperate abort function?
+        socket.listen(port).map_err(|_| AetherError::Unknown.into())
+    }
+
+    fn tcp_connect(
+        &mut self,
+        msg: &userlib::RecvMessage,
+        socket: SocketName,
+        metadata: TcpMetadata,
+    ) -> Result<(), RequestError<AetherError>> {
+        unreachable!()
+    }
+
+    fn close_tcp(
+        &mut self,
+        msg: &userlib::RecvMessage,
+        socket: SocketName,
+    ) -> Result<(), idol_runtime::RequestError<AetherError>> {
+        if crate::generated::SOCKET_OWNERS[socket as usize].0.index()
+            != msg.sender.index()
+        {
+            return Err(AetherError::WrongOwner.into());
+        }
+
+        let socket = self.get_tcp_socket_mut(socket as usize)?;
+        // TODO consider using close and a seperate abort function?
+        socket.abort();
+        Ok(())
+    }
+
+    fn is_tcp_active(
+        &mut self,
+        msg: &userlib::RecvMessage,
+        socket: SocketName,
+    ) -> Result<bool, idol_runtime::RequestError<AetherError>> {
+        if crate::generated::SOCKET_OWNERS[socket as usize].0.index()
+            != msg.sender.index()
+        {
+            return Err(AetherError::WrongOwner.into());
+        }
+
+        let socket = self.get_tcp_socket_mut(socket as usize)?;
+        Ok(socket.is_open())
+    }
+
+    fn send_tcp_data(
+        &mut self,
+        msg: &userlib::RecvMessage,
+        socket: SocketName,
+        payload: Leased<idol_runtime::R, [u8]>,
+    ) -> Result<(), RequestError<AetherError>> {
+        if crate::generated::SOCKET_OWNERS[socket as usize].0.index()
+            != msg.sender.index()
+        {
+            return Err(AetherError::WrongOwner.into());
+        }
+
+        let socket = self.get_tcp_socket_mut(socket as usize)?;
+
+        match socket.send(|buf| {
+            if buf.len() < payload.len() {
+                panic!("buffer stuff to do ben!");
+            }
+            payload.read_range(0..payload.len(), buf).unwrap();
+            // TODO there needs to be a way of handling if this write fails
+
+            (payload.len(), 0)
+        }) {
+            Ok(len) => Ok(()),
+            e => panic!("couldn't send packet {:?}", e),
+        }
+    }
+
+    fn recv_udp_packet(
         &mut self,
         msg: &userlib::RecvMessage,
         socket: SocketName,
@@ -68,7 +231,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
             return Err(AetherError::WrongOwner.into());
         }
 
-        let socket = self.get_socket_mut(socket_index)?;
+        let socket = self.get_udp_socket_mut(socket_index)?;
         match socket.recv() {
             Ok((body, endp)) => {
                 if payload.len() < body.len() {
@@ -91,7 +254,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
         }
     }
 
-    fn send_packet(
+    fn send_udp_packet(
         &mut self,
         msg: &userlib::RecvMessage,
         socket: SocketName,
@@ -104,7 +267,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
             return Err(AetherError::WrongOwner.into());
         }
 
-        let socket = self.get_socket_mut(socket as usize)?;
+        let socket = self.get_udp_socket_mut(socket as usize)?;
 
         match socket.send(payload.len(), metadata.into()) {
             Ok(buf) => {
@@ -123,8 +286,9 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
     fn get_addr(
         &mut self,
         msg: &userlib::RecvMessage,
-    ) -> Result<Ieee802154Address, idol_runtime::RequestError<AetherError>> {
-        Ok(self.iface.device_mut().get_addr())
+    ) -> Result<Ieee802154Address, idol_runtime::RequestError<AetherError>>
+    {
+        Ok(self.device.get_addr())
     }
 
     fn get_rssi(
@@ -143,12 +307,14 @@ impl NotificationHandler for AetherServer<'_> {
     fn handle_notification(&mut self, bits: u32) {
         // Interrupt dispatch.
         if bits & RADIO_IRQ != 0 {
-            self.iface.device_mut().handle_interrupt();
+            self.device.handle_interrupt();
             userlib::sys_irq_control(RADIO_IRQ, true);
         }
     }
 }
 mod idl {
-    use task_aether_api::{AetherError, Ieee802154Address, SocketName, UdpMetadata};
+    use task_aether_api::{
+        AetherError, Ieee802154Address, SocketName, TcpMetadata, UdpMetadata,
+    };
     include!(concat!(env!("OUT_DIR"), "/server_stub.rs"));
 }

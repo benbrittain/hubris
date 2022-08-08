@@ -195,7 +195,7 @@ impl NotificationHandler for UarteServer<'_> {
                         RX_BUFFER[RX_BUF_CNT] = RX_LOC[0];
                         RX_BUF_CNT += 1;
                     } else {
-                        sys_log!("dropped bytes!");
+                        panic!("dropped bytes!");
                     }
                     self.uarte.events_endrx.reset();
                     self.uarte.tasks_startrx.write(|w| unsafe { w.bits(1) });

@@ -12,6 +12,20 @@ pub struct UdpMetadata {
     pub payload_len: u32,
 }
 
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub struct TcpMetadata {
+    pub addr: Ipv6Address,
+    pub port: u16,
+}
+
+impl From<TcpMetadata> for smoltcp::wire::IpEndpoint {
+    fn from(m: TcpMetadata) -> Self {
+        Self {
+            addr: m.addr.into(),
+            port: m.port,
+        }
+    }
+}
 impl From<UdpMetadata> for smoltcp::wire::IpEndpoint {
     fn from(m: UdpMetadata) -> Self {
         Self {
@@ -106,12 +120,16 @@ impl From<Ipv6Address> for smoltcp::wire::Ipv6Address {
 #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, IdolError)]
 #[repr(u32)]
 pub enum AetherError {
-    /// No Packets to recieve. Will not wake task until there is a packet
+    /// No Packets to recieve. Will not wake task until there is a packet.
     QueueEmpty = 1,
-    /// No space in the transmit buffer
+    /// No space in the transmit buffer.
     NoTransmitSlot,
-    /// This socket is owned by a different task (check app.toml)
+    /// This socket is owned by a different task (check app.toml).
     WrongOwner,
+    /// Attempted to make a TCP Socket action on a UDP Socket (or vice versa).
+    WrongSocketType,
+    /// The remote side of the TCP connection was closed.
+    RemoteTcpClose,
     /// Unknown Error from smoltcp socket.
     Unknown,
 }

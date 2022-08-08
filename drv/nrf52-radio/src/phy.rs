@@ -15,19 +15,22 @@ impl<'a> Device<'a> for Radio<'_> {
     fn receive(&'a mut self) -> Option<(Self::RxToken, Self::TxToken)> {
         // if the buffers aren't full, we attempt to receive packets
         if self.can_recv() && self.can_send() {
-            Some((RadioRxToken(self), RadioTxToken(self)))
-        } else {
-            None
+            return Some((RadioRxToken(self), RadioTxToken(self)));
         }
+        None
     }
 
     fn transmit(&'a mut self) -> Option<Self::TxToken> {
-        Some(RadioTxToken(self))
+        if self.can_send() {
+            return Some(RadioTxToken(self));
+        }
+        panic!("oh no");
+        None
     }
 
     fn capabilities(&self) -> DeviceCapabilities {
         let mut caps = DeviceCapabilities::default();
-        caps.max_transmission_unit = 127;
+        caps.max_transmission_unit = 123;
         caps.max_burst_size = Some(1);
         caps.medium = Medium::Ieee802154;
         caps

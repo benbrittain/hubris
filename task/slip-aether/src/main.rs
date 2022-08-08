@@ -18,6 +18,10 @@ task_slot!(AETHER, aether);
 
 const SOCKET: SocketName = SocketName::slip;
 
+const AETHER_NOTIFICATION: u32 = 1;
+const UART_POLL_FREQ_NOTIFICATION: u32 = 2;
+const UART_POLL_FREQ: u64 = 400;
+
 #[export_name = "main"]
 fn main() -> ! {
     let uart = Uart::from(UART.get_task_id());
@@ -27,54 +31,78 @@ fn main() -> ! {
 
     let mut output = [0; 2048];
     let mut buffer = [0; 2048];
+
+    let mut rx_data_buf = [0u8; 256];
+
+    let mut deadline = UART_POLL_FREQ;
+    sys_set_timer(Some(deadline), UART_POLL_FREQ_NOTIFICATION);
+
     loop {
-        let amount_read = uart.read(0, &mut buffer).unwrap();
-        if amount_read > 0 {
-            sys_log!("=========");
-//            sys_log!("in: {:x?}", &buffer[..amount_read]);
-        }
-        let mut slip = Decoder::new();
-        if let Ok((bytes_processed, output_slice, is_end_of_packet)) =
-            slip.decode(&buffer[..amount_read], &mut output)
-        {
-            if is_end_of_packet {
-                match smoltcp::wire::Ipv6Packet::new_checked(output_slice) {
-                    Ok(packet) => {
-                        let repr = Ipv6Repr::parse(&packet).unwrap();
-                        let mut dest_addr = repr.dst_addr;
+        // wake up if we get new packets or it's time to poll the uart service.
+        let msginfo = sys_recv_closed(
+            &mut [],
+            AETHER_NOTIFICATION | UART_POLL_FREQ_NOTIFICATION,
+            TaskId::KERNEL,
+        )
+        .unwrap();
+        assert!(msginfo.sender == TaskId::KERNEL);
 
-                        let udp_packet = smoltcp::wire::UdpPacket::new_checked(
-                            packet.payload(),
-                        )
-                        .unwrap();
+        if msginfo.operation & UART_POLL_FREQ_NOTIFICATION != 0 {
+            deadline += UART_POLL_FREQ;
+            sys_set_timer(Some(deadline), UART_POLL_FREQ_NOTIFICATION);
 
-                        let tx_bytes = udp_packet.payload();
+            // Read data off the uart.
+            let uart_amount_read = uart.read(0, &mut buffer).unwrap();
+            if uart_amount_read > 0 {
+                let mut slip = Decoder::new();
+                if let Ok((bytes_processed, output_slice, is_end_of_packet)) =
+                    slip.decode(&buffer[..uart_amount_read], &mut output)
+                {
+                    if is_end_of_packet {
+                        match smoltcp::wire::Ipv6Packet::new_checked(
+                            output_slice,
+                        ) {
+                            Ok(packet) => {
+                                let repr = Ipv6Repr::parse(&packet).unwrap();
+                                let mut dest_addr = repr.dst_addr;
 
-                        sys_log!("swaping ip addr");
-                        sys_log!("original dst: {:x?}", dest_addr.0);
-                        dest_addr.0[0] = 0xfe;
-                        dest_addr.0[1] = 0x80;
-                        dest_addr.0[2] = 0x00;
-                        dest_addr.0[3] = 0x00;
-                        sys_log!("new dst: {:x?}", dest_addr.0);
+                                let udp_packet =
+                                    smoltcp::wire::UdpPacket::new_checked(
+                                        packet.payload(),
+                                    )
+                                    .unwrap();
 
-                        let meta = UdpMetadata {
-                            addr: Ipv6Address(dest_addr.0),
-                            port: udp_packet.dst_port(),
-                            payload_len: udp_packet.payload().len() as u32,
-                        };
-                        sys_log!("sending: {:?}", meta);
+                                let tx_bytes = udp_packet.payload();
 
-                        aether.send_packet(SOCKET, meta, &tx_bytes);
-                        hl::sleep_for(100);
-                        let mut rx_data_buf = [0u8; 64];
-                        sys_log!("REC: {:?}", aether.recv_packet(SOCKET, &mut rx_data_buf));
+                                let meta = UdpMetadata {
+                                    addr: Ipv6Address(dest_addr.0),
+                                    port: udp_packet.dst_port(),
+                                    payload_len: udp_packet.payload().len()
+                                        as u32,
+                                };
+                                aether.send_packet(SOCKET, meta, &tx_bytes);
+                            }
+                            Err(e) => sys_log!("err: {:?}", e),
+                        }
                     }
-                    Err(e) => sys_log!("err: {:?}", e),
                 }
             }
         }
-        hl::sleep_for(1000);
-    }
 
+        loop {
+            // Read data off the network
+            match aether.recv_packet(SOCKET, &mut rx_data_buf) {
+                Ok(meta) => {
+                    sys_log!("SLIP - Recv Packet");
+                    // Send data back up the uart
+                    uart.write(&rx_data_buf[..meta.payload_len as usize]);
+                }
+                Err(AetherError::QueueEmpty) => {
+                    sys_log!("SLIP - No packets, stalling.");
+                    break;
+                }
+                _ => panic!("Unhandled error on recv packet"),
+            }
+        }
+    }
 }

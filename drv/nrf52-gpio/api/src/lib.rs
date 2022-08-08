@@ -5,14 +5,6 @@
 pub use drv_nrf52_gpio_common::*;
 use userlib::*;
 
-#[derive(zerocopy::AsBytes, Copy, Clone, Debug, PartialEq, FromPrimitive)]
-#[repr(C)]
-pub struct Port(pub u8);
-
-#[derive(zerocopy::AsBytes, Copy, Clone, Debug, PartialEq, FromPrimitive)]
-#[repr(C)]
-pub struct Pin(pub u8);
-
 #[derive(Copy, Clone, Debug, FromPrimitive, PartialEq)]
 pub enum GpioError {
     Unknown,

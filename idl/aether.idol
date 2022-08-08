@@ -3,7 +3,7 @@
 Interface(
     name: "Aether",
     ops: {
-        "recv_packet": (
+        "recv_udp_packet": (
             encoding: Ssmarshal,
             doc: "Unqueues an incoming packet from a socket.",
             args: {
@@ -17,12 +17,90 @@ Interface(
                 err: CLike("AetherError"),
             ),
         ),
-        "send_packet": (
+        "send_udp_packet": (
             encoding: Ssmarshal,
             doc: "Queues an outgoing packet into a socket.",
             args: {
                 "socket": "SocketName",
                 "metadata": "UdpMetadata",
+            },
+            leases: {
+                "payload": (type: "[u8]", read: true),
+            },
+            reply: Result(
+                ok: "()",
+                err: CLike("AetherError"),
+            ),
+        ),
+        "tcp_listen": (
+            encoding: Ssmarshal,
+            doc: "Queues an outgoing packet into a socket.",
+            args: {
+                "socket": "SocketName",
+                "port": "u16",
+            },
+            leases: { },
+            reply: Result(
+                ok: "()",
+                err: CLike("AetherError"),
+            ),
+        ),
+        "tcp_connect": (
+            encoding: Ssmarshal,
+            doc: "Queues an outgoing packet into a socket.",
+            args: {
+                "socket": "SocketName",
+                "metadata": "TcpMetadata",
+            },
+            leases: { },
+            reply: Result(
+                ok: "()",
+                err: CLike("AetherError"),
+            ),
+        ),
+        "close_tcp": (
+            encoding: Ssmarshal,
+            doc: "Close a TCP socket.",
+            args: {
+                "socket": "SocketName",
+            },
+            leases: {},
+            reply: Result(
+                ok: "()",
+                err: CLike("AetherError"),
+            ),
+        ),
+        "is_tcp_active": (
+            encoding: Ssmarshal,
+            doc: "Return whether a TCP connection is active.",
+            args: {
+                "socket": "SocketName",
+            },
+            leases: {},
+            reply: Result(
+                ok: "bool",
+                err: CLike("AetherError"),
+            ),
+        ),
+        "recv_tcp_data": (
+            encoding: Ssmarshal,
+            doc: "Unqueues an incoming packet from a socket.",
+            args: {
+                "socket": "SocketName",
+            },
+            leases: {
+                "payload": (type: "[u8]", write: true),
+            },
+            reply: Result(
+                ok: "u32",
+                err: CLike("AetherError"),
+            ),
+        ),
+        "send_tcp_data": (
+            encoding: Ssmarshal,
+            doc: "Queues an outgoing packet into a socket.",
+            args: {
+                "socket": "SocketName",
             },
             leases: {
                 "payload": (type: "[u8]", read: true),

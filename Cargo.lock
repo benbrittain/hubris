@@ -51,6 +51,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "array-init"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfb6d71005dc22a708c7496eee5c8dc0300ee47355de6256c3b35b12b5fef596"
+
+[[package]]
 name = "arrayvec"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -946,10 +952,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "drv-nrf52-spi"
+version = "0.1.0"
+dependencies = [
+ "drv-nrf52-gpio-common",
+ "nrf52840-pac",
+ "num-traits",
+ "ringbuf",
+ "vcell",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-nrf52-spi-server"
+version = "0.1.0"
+dependencies = [
+ "build-util",
+ "call_rustfmt",
+ "cfg-if 1.0.0",
+ "drv-nrf52-gpio-api",
+ "drv-nrf52-spi",
+ "drv-spi-api",
+ "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "indexmap",
+ "nrf52840-pac",
+ "num-traits",
+ "proc-macro2",
+ "quote",
+ "ringbuf",
+ "serde",
+ "syn",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "drv-nrf52-uart"
 version = "0.1.0"
 dependencies = [
- "cortex-m-semihosting",
  "drv-nrf52-gpio-api",
  "drv-nrf52-uart-api",
  "idol 0.2.0",
@@ -978,7 +1019,6 @@ name = "drv-nrf52840-gpio"
 version = "0.1.0"
 dependencies = [
  "cfg-if 1.0.0",
- "cortex-m-semihosting",
  "drv-nrf52-gpio-api",
  "drv-nrf52-gpio-common",
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
@@ -1961,6 +2001,7 @@ dependencies = [
 name = "nrf52-radio"
 version = "0.1.0"
 dependencies = [
+ "array-init",
  "cortex-m",
  "cortex-m-semihosting",
  "log",
@@ -3625,10 +3666,10 @@ name = "userlib"
 version = "0.1.0"
 dependencies = [
  "abi",
- "armv6m-atomic-hack",
  "bstringify",
  "build-util",
  "cfg-if 0.1.10",
+ "cortex-m",
  "num-derive",
  "num-traits",
  "paste",

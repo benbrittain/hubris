@@ -4,13 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-userlib = {path = "../../sys/userlib", features = ["panic-messages", "log-semihosting"]}
+userlib = {path = "../../sys/userlib" }
 zerocopy = "0.6"
 nrf52840-pac = "0.11.0"
 drv-nrf52-gpio-api = {path = "../../drv/nrf52-gpio/api"}
-cortex-m-semihosting = { version = "0.3.7" }
 num-traits = { version = "0.2.12", default-features = false }
-#idol-runtime = {git = "https://github.com/benbrittain/idolatry.git"}
 idol-runtime = {path = "../../../idolatry/runtime"}
 
 drv-nrf52-uart-api = {path = "./api"}

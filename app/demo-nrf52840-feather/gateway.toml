@@ -76,54 +76,54 @@ priority = 1
 requires = {flash = 131072, ram = 32768 }
 stacksize = 16384
 start = true
-features = ["semihosting"]
-#features = ["log-null"]
+features = ["itm"]
 uses = ["radio", "ficr", "rng", "clock"]
 interrupts = { "radio.irq" = 1 }
 
-[tasks.slip]
-path = "../../task/slip-aether/"
-name = "task-slip-aether"
+[tasks.udpbroadcast]
+path = "../../task/udpbroadcast/"
+name = "task-udpbroadcast"
 priority = 4
 requires = {flash = 32768, ram = 16384 }
 start = true
-features = ["userlib/log-rtt"]
+#features = ["itm"]
 task-slots = ["uart", "aether"]
 #stacksize = 4096
 stacksize = 8192
 
+[tasks.blinky]
+path = "../../task/blinky"
+name = "task-blinky"
+priority = 4
+requires = {flash = 16384, ram = 1024}
+start = true
+task-slots = ["gpio"]
+features = ["itm"]
+
+# [tasks.slip]
+# path = "../../task/slip-aether/"
+# name = "task-slip-aether"
+# priority = 4
+# requires = {flash = 32768, ram = 16384 }
+# start = true
+# features = ["itm"]
+# task-slots = ["uart", "aether"]
+# #stacksize = 4096
+# stacksize = 8192
+
 [config.aether]
 pan_id = 0x1eaf
 
-[config.aether.sockets.slip]
-kind = "udp"
-owner = {name = "slip", notification = 1}
-port = 7
-tx = { packets = 16, bytes = 1024 }
-rx = { packets = 16, bytes = 1024 }
-
-# [config.aether.sockets.broadcast]
+# [config.aether.sockets.slip]
 # kind = "udp"
-# owner = {name = "udpbroadcast", notification = 1}
-# port = 997
+# owner = {name = "slip", notification = 1}
+# port = 7
 # tx = { packets = 16, bytes = 1024 }
 # rx = { packets = 16, bytes = 1024 }
 
-# [config.aether.sockets.ping]
-# kind = "udp"
-# owner = { name = "aetherping", notification = 5 }
-# port = 8
-# tx = { packets = 1, bytes = 1024 }
-# rx = { packets = 1, bytes = 1024 }
-#interrupts = {"rtc2.irq" = 3 }
-#uses = ["rtc2", "clock"]
-
-# [tasks.air_quality]
-# path = "../../task/air-quality/"
-# name = "task-air-quality"
-# priority = 3
-# requires = {flash = 32768, ram = 16384 }
-# start = true
-# features = ["semihosting"]
-# task-slots = ["uart"]
-# stacksize = 8192
+[config.aether.sockets.broadcast]
+kind = "udp"
+owner = {name = "udpbroadcast", notification = 1}
+port = 7
+tx = { packets = 16, bytes = 1024 }
+rx = { packets = 16, bytes = 1024 }

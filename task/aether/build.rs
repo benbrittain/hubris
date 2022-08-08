@@ -95,7 +95,7 @@ fn generate_aether_config(
         "{}",
         quote::quote! {
             use core::sync::atomic::{AtomicBool, Ordering};
-            use smoltcp::socket::udp;
+            use smoltcp::socket::{tcp, udp};
 
             pub const SOCKET_COUNT: usize = #socket_count;
         }
@@ -133,7 +133,7 @@ fn generate_port_table(
     let n = config.sockets.len();
 
     Ok(quote::quote! {
-        pub(crate) const SOCKET_PORTS: [u16; #n] = [
+        pub(crate) const UDP_SOCKET_PORTS: [u16; #n] = [
             #( #consts ),*
         ];
     })
@@ -169,19 +169,26 @@ fn generate_socket_state(
     name: &str,
     config: &SocketConfig,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
-    if config.kind != "udp" {
-        return Err("unsupported socket kind".into());
+    if config.kind == "udp" {
+        let tx = generate_udp_buffers(name, "TX", &config.tx)?;
+        let rx = generate_udp_buffers(name, "RX", &config.rx)?;
+        Ok(quote::quote! {
+            #tx
+            #rx
+        })
+    } else if config.kind == "tcp" {
+        let tx = generate_tcp_buffers(name, "TX", &config.tx)?;
+        let rx = generate_tcp_buffers(name, "RX", &config.rx)?;
+        Ok(quote::quote! {
+            #tx
+            #rx
+        })
+    } else {
+        Err("unsupported socket kind".into())
     }
-
-    let tx = generate_buffers(name, "TX", &config.tx)?;
-    let rx = generate_buffers(name, "RX", &config.rx)?;
-    Ok(quote::quote! {
-        #tx
-        #rx
-    })
 }
 
-fn generate_buffers(
+fn generate_udp_buffers(
     name: &str,
     dir: &str,
     config: &BufSize,
@@ -190,9 +197,9 @@ fn generate_buffers(
     let bytecnt = config.bytes;
     let upname = name.to_ascii_uppercase();
     let hdrname: syn::Ident =
-        syn::parse_str(&format!("SOCK_{}_HDR_{}", dir, upname)).unwrap();
+        syn::parse_str(&format!("SOCK_UDP_{}_HDR_{}", dir, upname)).unwrap();
     let bufname: syn::Ident =
-        syn::parse_str(&format!("SOCK_{}_DAT_{}", dir, upname)).unwrap();
+        syn::parse_str(&format!("SOCK_UDP_{}_DAT_{}", dir, upname)).unwrap();
     Ok(quote::quote! {
         static mut #hdrname: [udp::PacketMetadata; #pktcnt] = [
             udp::PacketMetadata::EMPTY; #pktcnt
@@ -201,42 +208,86 @@ fn generate_buffers(
     })
 }
 
+fn generate_tcp_buffers(
+    name: &str,
+    dir: &str,
+    config: &BufSize,
+) -> Result<TokenStream, Box<dyn std::error::Error>> {
+    let pktcnt = config.packets;
+    let bytecnt = config.bytes;
+    let upname = name.to_ascii_uppercase();
+    let bufname: syn::Ident =
+        syn::parse_str(&format!("SOCK_TCP_{}_{}", dir, upname)).unwrap();
+    Ok(quote::quote! {
+        static mut #bufname: [u8; #bytecnt] = [0u8; #bytecnt];
+    })
+}
+
 fn generate_state_struct(
     config: &AetherConfig,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
-    let n = config.sockets.len();
+    let udp_n = config.sockets.iter().filter(|(_, conf)| conf.kind == "udp").count();
+    let tcp_n = config.sockets.iter().filter(|(_, conf)| conf.kind == "tcp").count();
     Ok(quote::quote! {
-        pub(crate) struct Sockets<'a>(pub [udp::Socket<'a>; #n]);
+        pub(crate) struct Sockets<'a>{
+            pub udp: [udp::Socket<'a>; #udp_n],
+            pub tcp: [tcp::Socket<'a>; #tcp_n]
+        }
     })
 }
 
 fn generate_constructor(
     config: &AetherConfig,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
-    let sockets = config.sockets.keys().map(|name| {
-        let upname = name.to_ascii_uppercase();
-        let rxhdrs: syn::Ident =
-            syn::parse_str(&format!("SOCK_RX_HDR_{}", upname)).unwrap();
-        let rxbytes: syn::Ident =
-            syn::parse_str(&format!("SOCK_RX_DAT_{}", upname)).unwrap();
-        let txhdrs: syn::Ident =
-            syn::parse_str(&format!("SOCK_TX_HDR_{}", upname)).unwrap();
-        let txbytes: syn::Ident =
-            syn::parse_str(&format!("SOCK_TX_DAT_{}", upname)).unwrap();
+    let udp_sockets = config.sockets.iter().filter_map(|(name, config)| {
+            if config.kind != "udp" {
+                return None;
+            }
+            let upname = name.to_ascii_uppercase();
+            let rxhdrs: syn::Ident =
+                syn::parse_str(&format!("SOCK_UDP_RX_HDR_{}", upname)).unwrap();
+            let rxbytes: syn::Ident =
+                syn::parse_str(&format!("SOCK_UDP_RX_DAT_{}", upname)).unwrap();
+            let txhdrs: syn::Ident =
+                syn::parse_str(&format!("SOCK_UDP_TX_HDR_{}", upname)).unwrap();
+            let txbytes: syn::Ident =
+                syn::parse_str(&format!("SOCK_UDP_TX_DAT_{}", upname)).unwrap();
 
-        quote::quote! {
-            udp::Socket::new(
-                udp::PacketBuffer::new(
-                    unsafe { &mut #rxhdrs[..] },
-                    unsafe { &mut #rxbytes[..] },
-                ),
-                udp::PacketBuffer::new(
-                    unsafe { &mut #txhdrs[..] },
-                    unsafe { &mut #txbytes[..] },
-                ),
-            )
-        }
+            Some(quote::quote! {
+                udp::Socket::new(
+                    udp::PacketBuffer::new(
+                        unsafe { &mut #rxhdrs[..] },
+                        unsafe { &mut #rxbytes[..] },
+                    ),
+                    udp::PacketBuffer::new(
+                        unsafe { &mut #txhdrs[..] },
+                        unsafe { &mut #txbytes[..] },
+                    ),
+                )
+            })
     });
+    let tcp_sockets = config.sockets.iter().filter_map(|(name, config)| {
+            if config.kind != "tcp" {
+                return None;
+            }
+            let upname = name.to_ascii_uppercase();
+            let rxbytes: syn::Ident =
+                syn::parse_str(&format!("SOCK_TCP_RX_{}", upname)).unwrap();
+            let txbytes: syn::Ident =
+                syn::parse_str(&format!("SOCK_TCP_TX_{}", upname)).unwrap();
+
+            Some(quote::quote! {
+                tcp::Socket::new(
+                    tcp::SocketBuffer::new(
+                        unsafe { &mut #rxbytes[..] },
+                    ),
+                    tcp::SocketBuffer::new(
+                        unsafe { &mut #txbytes[..] },
+                    ),
+                )
+            })
+    });
+
     Ok(quote::quote! {
         static CTOR_FLAG: AtomicBool = AtomicBool::new(false);
         pub(crate) fn construct_sockets() -> Sockets<'static> {
@@ -245,9 +296,10 @@ fn generate_constructor(
 
             // Now that we're confident we're not aliasing, we can touch these
             // static muts.
-            Sockets([
-                #( #sockets ),*
-            ])
+            Sockets {
+                udp: [ #( #udp_sockets ),* ],
+                tcp: [ #( #tcp_sockets ),* ],
+            }
         }
     })
 }

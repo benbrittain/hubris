@@ -42,7 +42,6 @@ fn main() -> ! {
         let msginfo = sys_recv_open(&mut msg, TIMER_NOTIFICATION);
 
         if msginfo.sender == TaskId::KERNEL {
-            sys_log!("blink");
             dl += INTERVAL;
             sys_set_timer(Some(dl), TIMER_NOTIFICATION);
 
