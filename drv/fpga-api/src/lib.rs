@@ -112,6 +112,16 @@ impl From<WriteOp> for u8 {
     }
 }
 
+impl From<bool> for WriteOp {
+    fn from(p: bool) -> Self {
+        if p {
+            WriteOp::BitSet
+        } else {
+            WriteOp::BitClear
+        }
+    }
+}
+
 pub struct FpgaLock(idl::Fpga);
 
 impl Deref for FpgaLock {
@@ -221,9 +231,7 @@ impl FpgaUserDesign {
     where
         T: AsBytes + FromBytes,
     {
-        Ok(self
-            .0
-            .user_design_write(op, addr.into(), value.as_bytes())?)
+        self.0.user_design_write(op, addr.into(), value.as_bytes())
     }
 }
 

@@ -1120,10 +1120,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "drv-sidecar-mainboard-controller-api"
+version = "0.1.0"
+dependencies = [
+ "build-util",
+ "drv-fpga-api",
+ "gnarle",
+ "num-traits",
+ "serde",
+ "serde_json",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-sidecar-mainboard-i2c-emulator"
+version = "0.1.0"
+dependencies = [
+ "drv-i2c-api",
+ "ringbuf",
+ "userlib",
+]
+
+[[package]]
 name = "drv-sidecar-seq-api"
 version = "0.1.0"
 dependencies = [
  "derive-idol-err",
+ "drv-fpga-api",
+ "drv-sidecar-mainboard-controller-api",
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
  "userlib",
@@ -1139,11 +1164,11 @@ dependencies = [
  "byteorder",
  "cfg-if",
  "cortex-m",
+ "drv-fpga-api",
  "drv-i2c-api",
  "drv-i2c-devices",
+ "drv-sidecar-mainboard-controller-api",
  "drv-sidecar-seq-api",
- "drv-spi-api",
- "drv-stm32xx-sys-api",
  "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
  "num-traits",
@@ -2542,9 +2567,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.5.4"
+version = "1.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d07a8629359eb56f1e2fb1652bb04212c072a87ba68546a04065d525673ac461"
+checksum = "d83f127d94bdbcda4c8cc2e50f6f84f4b611f69c902699ca385a39c3a75f9ff1"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -2553,9 +2578,9 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.6.25"
+version = "0.6.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
+checksum = "49b3de9ec5dc0a3417da371aab17d729997c15010e7fd24ff707773a33bddb64"
 
 [[package]]
 name = "ringbuf"

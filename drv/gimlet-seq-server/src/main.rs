@@ -58,6 +58,7 @@ ringbuf!(Trace, 64, Trace::None);
 fn main() -> ! {
     let spi = spi_api::Spi::from(SPI.get_task_id());
     let sys = sys_api::Sys::from(SYS.get_task_id());
+    let hf = hf_api::HostFlash::from(HF.get_task_id());
 
     // To allow for the possibility that we are restarting, rather than
     // starting, we take care during early sequencing to _not turn anything
@@ -296,6 +297,7 @@ fn main() -> ! {
     let mut server = ServerImpl {
         state: PowerState::A2,
         seq,
+        hf,
     };
 
     loop {
@@ -306,6 +308,7 @@ fn main() -> ! {
 struct ServerImpl {
     state: PowerState,
     seq: seq_spi::SequencerFpga,
+    hf: hf_api::HostFlash,
 }
 
 impl idl::InOrderSequencerImpl for ServerImpl {
@@ -329,9 +332,7 @@ impl idl::InOrderSequencerImpl for ServerImpl {
                 //
                 // First, set our mux state to be the HostCPU
                 //
-                let hf = hf_api::HostFlash::from(HF.get_task_id());
-
-                if let Err(_) = hf.set_mux(hf_api::HfMuxState::HostCPU) {
+                if let Err(_) = self.hf.set_mux(hf_api::HfMuxState::HostCPU) {
                     return Err(SeqError::MuxToHostCPUFailed.into());
                 }
 
@@ -387,13 +388,16 @@ impl idl::InOrderSequencerImpl for ServerImpl {
             }
 
             (PowerState::A0, PowerState::A2) => {
-                let hf = hf_api::HostFlash::from(HF.get_task_id());
-                let a1a0 = Reg::PWRCTRL::A0C_DIS;
+                //
+                // Flip the UART mux back to disabled
+                //
+                uart_sp_to_sp3_disable();
 
+                let a1a0 = Reg::PWRCTRL::A0C_DIS;
                 self.seq.write_bytes(Addr::PWRCTRL, &[a1a0]).unwrap();
                 vcore_soc_off();
 
-                if let Err(_) = hf.set_mux(hf_api::HfMuxState::SP) {
+                if let Err(_) = self.hf.set_mux(hf_api::HfMuxState::SP) {
                     return Err(SeqError::MuxToSPFailed.into());
                 }
 
@@ -505,7 +509,7 @@ cfg_if::cfg_if! {
             sys.gpio_configure_output(
                 UART_TX_ENABLE,
                 sys_api::OutputType::PushPull,
-                sys_api::Speed::High,
+                sys_api::Speed::Low,
                 sys_api::Pull::None,
             )
             .unwrap();
@@ -513,6 +517,19 @@ cfg_if::cfg_if! {
             sys.gpio_reset(UART_TX_ENABLE).unwrap();
         }
 
+        fn uart_sp_to_sp3_disable() {
+            let sys = sys_api::Sys::from(SYS.get_task_id());
+
+            sys.gpio_configure_output(
+                UART_TX_ENABLE,
+                sys_api::OutputType::PushPull,
+                sys_api::Speed::Low,
+                sys_api::Pull::None,
+            )
+            .unwrap();
+
+            sys.gpio_set(UART_TX_ENABLE).unwrap();
+        }
         const ENABLES_PORT: sys_api::Port = sys_api::Port::A;
         const ENABLE_V1P2_MASK: u16 = 1 << 15;
         const ENABLE_V3P3_MASK: u16 = 1 << 4;
