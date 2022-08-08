@@ -107,7 +107,7 @@ task-slots = ["user_leds"]
 
 [tasks.uartecho]
 name = "task-uartecho"
-features = ["stm32h743", "usart2"]
+features = ["stm32h753", "usart2"]
 uses = ["usart2"]
 interrupts = {"usart2.irq" = 1}
 priority = 3
@@ -161,7 +161,7 @@ features = ["vlan"]
 name = "task-validate"
 priority = 3
 requires = {flash = 32768, ram = 4096}
-stacksize = 1024 
+stacksize = 1024
 start = true
 task-slots = ["i2c_driver"]
 

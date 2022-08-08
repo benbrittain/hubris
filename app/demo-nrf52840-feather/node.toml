@@ -5,7 +5,6 @@ chip = "../../chips/nrf52"
 stacksize = 896
 
 [kernel]
-path = "."
 name = "demo-nrf52840-feather"
 requires = {flash = 32768, ram = 3072}
 features = ["itm"]
@@ -25,7 +24,6 @@ execute = true
 
 
 [tasks.jefe]
-path = "../../task/jefe"
 name = "task-jefe"
 priority = 0
 requires = {flash = 8192, ram = 2048}
@@ -34,7 +32,6 @@ features = ["log-null"]
 stacksize = 1536
 
 [tasks.idle]
-path = "../../task/idle"
 name = "task-idle"
 priority = 6
 requires = {flash = 128, ram = 256}
@@ -42,7 +39,6 @@ stacksize = 256
 start = true
 
 [tasks.hiffy]
-path = "../../task/hiffy"
 name = "task-hiffy"
 priority = 3
 requires = {flash = 8192, ram = 16384 }
@@ -50,7 +46,6 @@ stacksize = 2048
 start = true
 
 [tasks.gpio]
-path = "../../drv/nrf52-gpio/"
 name = "drv-nrf52840-gpio"
 priority = 2
 requires = {flash = 1024, ram = 1024}
@@ -58,7 +53,6 @@ start = true
 uses = ["gpio0"]
 
 [tasks.uart]
-path = "../../drv/nrf52-uart/"
 name = "drv-nrf52-uart"
 priority = 3
 requires = {flash = 8192, ram = 4096}
@@ -68,7 +62,6 @@ uses = ["uarte0"]
 interrupts = {"uarte0.irq" = 1}
 
 [tasks.aether]
-path = "../../task/aether"
 name = "task-aether"
 priority = 1
 requires = {flash = 131072, ram = 32768 }
@@ -79,7 +72,6 @@ uses = ["radio", "ficr", "rng", "clock"]
 interrupts = { "radio.irq" = 1 }
 
 [tasks.udpecho]
-path = "../../task/udpecho"
 name = "task-udpecho"
 priority = 3
 requires = {flash = 32768, ram = 8192}
@@ -89,7 +81,6 @@ features = ["userlib/log-itm"]
 task-slots = ["aether"]
 
 [tasks.blinky]
-path = "../../task/blinky"
 name = "task-blinky"
 priority = 4
 requires = {flash = 16384, ram = 1024}
@@ -97,7 +88,6 @@ start = true
 task-slots = ["gpio"]
 
 # [tasks.air_quality]
-# path = "../../task/air-quality/"
 # name = "task-air-quality"
 # priority = 3
 # requires = {flash = 32768, ram = 16384 }

@@ -114,6 +114,10 @@ members = [
     "drv/nrf52-gpio/api",
     "drv/nrf52-gpio/common",
 
+    "drv/fpga-api",
+    "drv/fpga-devices",
+    "drv/fpga-server",
+
     "drv/user-leds",
     "drv/user-leds-api",
     "drv/ice40-spi-program",
