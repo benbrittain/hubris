@@ -4,16 +4,14 @@
 
 //! Architecture support for ARMv{6,7,8}-M.
 //!
-//! Mostly ARMv7-M at the moment.
-//!
 //! # ARM-M timer
 //!
 //! We use the system tick timer as the kernel timer, but it's only suitable for
 //! producing periodic interrupts -- its counter is small and only counts down.
-//! So, at each interrupt, we increment the `TICKS` global that contains the
-//! real kernel timestamp. This has the downside that we take regular interrupts
-//! to maintain `TICKS`, but has the upside that we don't need special SoC
-//! support for timing.
+//! So, at each SysTick interrupt, we increment the `TICKS` global that contains
+//! the real kernel timestamp. This has the downside that we take regular
+//! interrupts to maintain `TICKS`, but has the upside that we don't need
+//! special SoC support for timing.
 //!
 //! # Notes on ARM-M interrupts
 //!
@@ -76,7 +74,6 @@ use core::ptr::NonNull;
 
 use zerocopy::FromBytes;
 
-use crate::app;
 use crate::task;
 use crate::time::Timestamp;
 use crate::umem::USlice;
@@ -84,52 +81,6 @@ use abi::FaultInfo;
 #[cfg(any(armv7m, armv8m))]
 use abi::FaultSource;
 use unwrap_lite::UnwrapLite;
-
-/// Log things from kernel context. This macro is made visible to the rest of
-/// the kernel by a chain of `#[macro_use]` attributes, but its implementation
-/// is very architecture-specific at the moment.
-///
-/// At the moment, there are two (architecture-specific) ways to log:  via
-/// semihosting (configured via the "klog-semihosting" feature) or via the
-/// ARM's Instrumentation Trace Macrocell (configured via the "klog-itm"
-/// feature).  If neither of these features is enabled, klog! will be stubbed
-/// out.
-///
-/// In the future, we will likely want to add at least one more mechanism for
-/// logging (one that can be presumably be made neutral with respect to
-/// architecure), whereby kernel logs can be produced somewhere (e.g., a ring
-/// buffer) from which they can be consumed by some entity for shipping
-/// elsewhere.
-///
-#[cfg(not(any(feature = "klog-semihosting", feature = "klog-itm")))]
-macro_rules! klog {
-    ($s:expr) => {};
-    ($s:expr, $($tt:tt)*) => {};
-}
-
-#[cfg(feature = "klog-itm")]
-macro_rules! klog {
-    ($s:expr) => {
-        #[allow(unused_unsafe)]
-        unsafe {
-            let stim = &mut (*cortex_m::peripheral::ITM::ptr()).stim[0];
-            cortex_m::iprintln!(stim, $s);
-        }
-    };
-    ($s:expr, $($tt:tt)*) => {
-        #[allow(unused_unsafe)]
-        unsafe {
-            let stim = &mut (*cortex_m::peripheral::ITM::ptr()).stim[0];
-            cortex_m::iprintln!(stim, $s, $($tt)*);
-        }
-    };
-}
-
-#[cfg(feature = "klog-semihosting")]
-macro_rules! klog {
-    ($s:expr) => { let _ = cortex_m_semihosting::hprintln!($s); };
-    ($s:expr, $($tt:tt)*) => { let _ = cortex_m_semihosting::hprintln!($s, $($tt)*); };
-}
 
 macro_rules! uassert {
     ($cond : expr) => {
@@ -432,12 +383,12 @@ pub fn apply_memory_protection(task: &task::Task) {
             | (1 << 4)  // honor the region number
             | region.base;
         let ratts = region.attributes;
-        let xn = !ratts.contains(app::RegionAttributes::EXECUTE);
+        let xn = !ratts.contains(abi::RegionAttributes::EXECUTE);
         // These AP encodings are chosen such that we never deny *privileged*
         // code (i.e. us) access to the memory.
-        let ap = if ratts.contains(app::RegionAttributes::WRITE) {
+        let ap = if ratts.contains(abi::RegionAttributes::WRITE) {
             0b011
-        } else if ratts.contains(app::RegionAttributes::READ) {
+        } else if ratts.contains(abi::RegionAttributes::READ) {
             0b010
         } else {
             0b001
@@ -446,10 +397,10 @@ pub fn apply_memory_protection(task: &task::Task) {
         // shareability (with other cores or masters). See table B3-13 in the
         // ARMv7-M ARM. (Settings are identical on v6-M but the sharability and
         // TEX bits tend to be ignored.)
-        let (tex, scb) = if ratts.contains(app::RegionAttributes::DEVICE) {
+        let (tex, scb) = if ratts.contains(abi::RegionAttributes::DEVICE) {
             // Device memory.
             (0b000, 0b001)
-        } else if ratts.contains(app::RegionAttributes::DMA) {
+        } else if ratts.contains(abi::RegionAttributes::DMA) {
             // Conservative settings for normal memory assuming that DMA might
             // be a problem:
             // - Outer and inner non-cacheable.
@@ -546,29 +497,29 @@ pub fn apply_memory_protection(task: &task::Task) {
         let rnr = i as u32;
 
         let ratts = region.attributes;
-        let xn = !ratts.contains(app::RegionAttributes::EXECUTE);
+        let xn = !ratts.contains(abi::RegionAttributes::EXECUTE);
         // ARMv8m has less granularity than ARMv7m for privilege
         // vs non-privilege so there's no way to say that privilege
         // can be read write but non-privilge can only be read only
         // This _should_ be okay?
-        let ap = if ratts.contains(app::RegionAttributes::WRITE) {
+        let ap = if ratts.contains(abi::RegionAttributes::WRITE) {
             0b01 // RW by any privilege level
-        } else if ratts.contains(app::RegionAttributes::READ) {
+        } else if ratts.contains(abi::RegionAttributes::READ) {
             0b11 // Read only by any privilege level
         } else {
             0b00 // RW by privilege code only
         };
 
-        let (mair, sh) = if ratts.contains(app::RegionAttributes::DEVICE) {
+        let (mair, sh) = if ratts.contains(abi::RegionAttributes::DEVICE) {
             // Most restrictive: device memory, outer shared.
             (0b00000000, 0b10)
-        } else if ratts.contains(app::RegionAttributes::DMA) {
+        } else if ratts.contains(abi::RegionAttributes::DMA) {
             // Outer/inner non-cacheable, outer shared.
             (0b01000100, 0b10)
         } else {
-            let rw = u32::from(ratts.contains(app::RegionAttributes::READ))
+            let rw = u32::from(ratts.contains(abi::RegionAttributes::READ))
                 << 1
-                | u32::from(ratts.contains(app::RegionAttributes::WRITE));
+                | u32::from(ratts.contains(abi::RegionAttributes::WRITE));
             // write-back transient, not shared
             (0b0100_0100 | rw | rw << 4, 0b00)
         };
