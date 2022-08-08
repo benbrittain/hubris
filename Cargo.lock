@@ -63,6 +63,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
+name = "arrayvec"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
+
+[[package]]
 name = "atomic-polyfill"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1066,7 +1072,7 @@ dependencies = [
 name = "drv-sensirion-sps32"
 version = "0.1.0"
 dependencies = [
- "arrayvec",
+ "arrayvec 0.7.2",
  "drv-nrf52-uart-api",
  "sensirion-hdlc",
  "userlib",
@@ -1364,6 +1370,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "drv-update-api"
+version = "0.1.0"
+dependencies = [
+ "derive-idol-err",
+ "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "num-traits",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "drv-user-leds"
 version = "0.1.0"
 dependencies = [
@@ -1634,9 +1651,9 @@ checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
 
 [[package]]
 name = "heapless"
-version = "0.7.14"
+version = "0.7.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "065681e99f9ef7e0e813702a0326aedbcbbde7db5e55f097aedd1bf50b9dca43"
+checksum = "9f6733da246dc2af610133c8be0667170fd68e8ca5630936b520300eee8846f9"
 dependencies = [
  "atomic-polyfill",
  "hash32",
@@ -1743,7 +1760,7 @@ dependencies = [
 [[package]]
 name = "idol"
 version = "0.2.0"
-source = "git+https://github.com/oxidecomputer/idolatry.git#994077e3ecff3ec6df15c082fc4f810cf27c97f2"
+source = "git+https://github.com/oxidecomputer/idolatry.git#add88a535411bd98254b193887e39150d4bb500c"
 dependencies = [
  "indexmap",
  "quote",
@@ -1763,7 +1780,7 @@ dependencies = [
 [[package]]
 name = "idol-runtime"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/idolatry.git#994077e3ecff3ec6df15c082fc4f810cf27c97f2"
+source = "git+https://github.com/oxidecomputer/idolatry.git#add88a535411bd98254b193887e39150d4bb500c"
 dependencies = [
  "userlib",
  "zerocopy",
@@ -2585,7 +2602,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
- "semver 1.0.10",
+ "semver 1.0.13",
 ]
 
 [[package]]
@@ -2665,9 +2682,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.10"
+version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a41d061efea015927ac527063765e73601444cdc344ba855bc7bd44578b25e1c"
+checksum = "93f6841e709003d68bb2deee8c343572bf446003ec20a583e76f7b15cebf3711"
 
 [[package]]
 name = "semver-parser"
@@ -2688,7 +2705,7 @@ dependencies = [
 name = "sensirion-hdlc"
 version = "0.2.0"
 dependencies = [
- "arrayvec",
+ "arrayvec 0.5.2",
 ]
 
 [[package]]
@@ -2930,6 +2947,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "stm32h7-update-server"
+version = "0.1.0"
+dependencies = [
+ "drv-update-api",
+ "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "num-traits",
+ "ringbuf",
+ "stm32h7",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "strsim"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3109,6 +3140,7 @@ dependencies = [
  "drv-spi-api",
  "drv-stm32h7-i2c",
  "drv-stm32xx-sys-api",
+ "drv-update-api",
  "hif",
  "hubris-num-tasks",
  "num-traits",
