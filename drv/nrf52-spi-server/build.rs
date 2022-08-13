@@ -141,9 +141,9 @@ impl ToTokens for SpiConfig {
         // The svd2rust PAC can't decide whether acronyms are words, so we get
         // to produce both identifiers.
         let devname: syn::Ident =
-            syn::parse_str(&format!("SPI{}", self.controller)).unwrap();
+            syn::parse_str(&format!("SPIM{}", self.controller)).unwrap();
         let pname: syn::Ident =
-            syn::parse_str(&format!("Spi{}", self.controller)).unwrap();
+            syn::parse_str(&format!("Spim{}", self.controller)).unwrap();
 
         // We don't derive ToTokens for DeviceDescriptorConfig because it needs
         // extra knowledge (the mux_indices map) to do the conversion. Instead,
@@ -160,7 +160,7 @@ impl ToTokens for SpiConfig {
                     mux_index: #mux_index,
                     cs_port: Port(#cs_port),
                     cs_pin: Pin(#cs_pin),
-                    frequency: device::spi0::frequency::FREQUENCY_A::#freq,
+                    frequency: device::spim0::frequency::FREQUENCY_A::#freq,
                     spi_mode: #spi_mode,
                 }
             }
@@ -216,7 +216,7 @@ fn check_spi_config(
         )
     })?;
 
-    if config.controller > 2 {
+    if config.controller > 3 {
         return Err(format!(
             "bad controller {}, valid values are 0 thru 2",
             config.controller

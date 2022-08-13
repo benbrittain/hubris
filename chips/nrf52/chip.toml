@@ -46,14 +46,6 @@ address = 0x4000_D000
 size = 0x1000
 interrupts = { irq = 13 }
 
-[spi0]
-address = 0x4000_3000
-size = 0x1000
-
-[spi1]
-address = 0x4000_4000
-size = 0x1000
-
-[spi2]
-address = 0x4002_3000
+[spim3]
+address = 0x4002_F000
 size = 0x1000

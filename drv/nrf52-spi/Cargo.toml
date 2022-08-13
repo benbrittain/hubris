@@ -9,4 +9,16 @@ zerocopy = "0.6.1"
 num-traits = { version = "0.2.12", default-features = false }
 vcell = "0.1.2"
 nrf52840-pac = "*"
+cortex-m = "*"
 drv-nrf52-gpio-common = { path = "../nrf52-gpio/common/" }
+userlib = {path = "../../sys/userlib"}
+cortex-m-semihosting = {version = "*", optional = true}
+
+[features]
+spim0 = []
+spim1 = []
+spim2 = []
+spim3 = []
+itm = [ "userlib/log-itm" ]
+semihosting = [ "userlib/log-semihosting", "cortex-m-semihosting"]
+log-null = ["userlib/log-null"]

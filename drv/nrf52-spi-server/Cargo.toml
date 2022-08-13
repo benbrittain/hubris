@@ -26,9 +26,11 @@ proc-macro2 = "1"
 indexmap = "1.7"
 
 [features]
-spi0 = []
-spi1 = []
-spi2 = []
+itm = [ "userlib/log-itm" ]
+spim0 = []
+spim1 = []
+spim2 = []
+spim3 = []
 
 # This section is here to discourage RLS/rust-analyzer from doing test builds,
 # since test builds don't work for cross compilation.

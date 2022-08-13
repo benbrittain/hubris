@@ -5,11 +5,11 @@ edition = "2021"
 
 [dependencies]
 cortex-m = {version = "0.7", features = ["inline-asm"]}
-cortex-m-semihosting = {version = "*"}
 userlib = {path = "../../sys/userlib"}
-drv-nrf52-uart-api = {path = "../../drv/nrf52-uart/api"}
-drv-sensirion-sps32 = {path = "../../drv/sensirion-sps32/"}
-
+drv-spi-api = {path = "../../drv/spi-api"}
+bme68x-rust = "*"
+# drv-nrf52-uart-api = {path = "../../drv/nrf52-uart/api"}
+# drv-sensirion-sps32 = {path = "../../drv/sensirion-sps32/"}
 
 [features]
 itm = [ "userlib/log-itm" ]

@@ -71,6 +71,11 @@ fn main() -> ! {
         )
         .unwrap();
         gpio.set_high(device.cs_port, device.cs_pin).unwrap();
+        //if (device.mode <= 1) {
+        //    nrf_gpio_pin_clear(p_config->sck_pin);
+        //} else {
+        //    nrf_gpio_pin_set(p_config->sck_pin);
+        //}
     }
 
     for opt in CONFIG.mux_options {
@@ -80,7 +85,7 @@ fn main() -> ! {
             opt.miso_pin,
             gpio_api::Mode::Input,
             gpio_api::OutputType::PushPull,
-            gpio_api::Pull::None,
+            gpio_api::Pull::Down,
         )
         .unwrap();
         gpio.configure(
@@ -202,6 +207,7 @@ impl InOrderSpiImpl for ServerImpl {
         // If we're asserting CS, we want to *reset* the pin. If
         // we're not, we want to *set* it. Because CS is active low.
 
+        sys_log!("locking!");
         if cs_asserted {
             self.gpio.set_low(device.cs_port, device.cs_pin);
         } else {
@@ -284,13 +290,13 @@ impl ServerImpl {
             .as_ref()
             .map(|leased| LenLimit::len_as_u16(&leased))
             .unwrap_or(0);
-        let transfer_size = src_len.max(dest_len);
+        // let transfer_size = src_len.max(dest_len);
 
         // Zero-byte SPI transactions don't make sense and we'll
         // decline them.
-        if transfer_size == 0 {
-            return Err(SpiError::BadTransferSize.into());
-        }
+       // if src_len == 0 {
+       //     return Err(SpiError::BadTransferSize.into());
+       // }
 
         // We have a reasonable-looking request containing reasonable-looking
         // lease(s). This is our commit point.
@@ -301,124 +307,114 @@ impl ServerImpl {
             self.last_device_active = device_index;
             activate_spi_for_device(device_index, &self.gpio, &mut self.spi);
         }
-        sys_log!("down here!");
 
-        // start the transmission
-        self.spi.start();
+        ////// start the transmission
+        ////self.spi.start();
 
-        const BUFSIZ: usize = 16;
+        //const BUFSIZ: usize = 16;
 
-        let mut tx: Option<LeaseBufReader<_, BUFSIZ>> =
-            data_src.map(|b| LeaseBufReader::from(b.into_inner()));
-        let mut rx: Option<LeaseBufWriter<_, BUFSIZ>> =
-            data_dest.map(|b| LeaseBufWriter::from(b.into_inner()));
+        //let mut tx: Option<LeaseBufReader<_, BUFSIZ>> =
+        //    data_src.map(|b| LeaseBufReader::from(b.into_inner()));
+        //let mut rx: Option<LeaseBufWriter<_, BUFSIZ>> =
+        //    data_dest.map(|b| LeaseBufWriter::from(b.into_inner()));
 
         // We're doing this! Check if we need to control CS.
         let cs_override = self.lock_holder.is_some();
         if !cs_override {
             sys_log!("set low");
-            self.gpio.set_low(device.cs_port, device.cs_pin);
+            self.gpio.set_high(device.cs_port, device.cs_pin);
         //    self.gpio.gpio_set_reset(0, 1 << device.cs).unwrap();
         }
 
-        // nRF SPI is double buffered
-        //
-        // If the transaction is just one byte, we need to
-        // - write 1 byte
-        // - wait for ready event
-        // - read 1 byte.
-        //
-        // If the transaction is two or more bytes we need to
-        // - write 2 bytes
-        // - loop:
-        //  - wait for ready event
-        //  - read 1 byte
-        //  - if bytes_written < transfer_size
-        //      - write one byte
-        //  - if bytes_read == transfer_size
-        //      - break
-        //
-        // Combined into one, this looks like
-        // - write 1 byte
-        // - loop:
-        //  - if bytes_written < transfer_size
-        //    - write 1 byte
-        //  - wait for ready event
-        //  - read 1 byte
-        //  - if bytes_read == transfer_size
-        //      - break
-        //
-        // We don't use sleeps/interrupts because it doesn't make sense
-        // right now. We're not using the DMA version of SPI, so we have
-        // to do work after every byte to keep the transaction going. The
-        // overhead of sleeping/interrupting for this just wouldn't make
-        // sense at 8MHz transfer speed.
-        //
-        // It would make sense at slower speeds but at that point we should
-        // just rewrite the underlying SPI implementation to use the DMA
-        // interface at the same time so you don't have weird logic that
-        // uses interrupts sometimes but not other times.
-
-        let mut bytes_read = 0;
-        let mut bytes_written = 0;
-
-        let txbyte = if let Some(txbuf) = &mut tx {
-            if let Some(b) = txbuf.read() {
-                b
-            } else {
-                // We've hit the end of the lease. Stop checking.
-                tx = None;
-                0
-            }
-        } else {
-            0
+        let mut txbuf = [0; 16];
+        match data_src {
+            Some(src) => {
+                src.read_range(0..src.len(), &mut txbuf);
+            },
+            None => {},
         };
-        ringbuf_entry!(Trace::Tx(txbyte));
-        self.spi.send8(txbyte);
-        bytes_written += 1;
+        sys_log!("SRC: {:x?}", txbuf);
+        //self.spi.send_bytes(&txbuf);
 
-        while bytes_read < transfer_size {
-            if bytes_written < transfer_size {
-                let txbyte = if let Some(txbuf) = &mut tx {
-                    if let Some(b) = txbuf.read() {
-                        b
-                    } else {
-                        // We've hit the end of the lease. Stop checking.
-                        tx = None;
-                        0
-                    }
-                } else {
-                    0
-                };
-                ringbuf_entry!(Trace::Tx(txbyte));
-                self.spi.send8(txbyte);
-                bytes_written += 1;
-            }
+        //let mut rxbuf = [0; 16];
+//        data_dest.unwrap().read_range(0..16, &mut rxbuf);
+        self.spi.recv_bytes(0);
 
-            // spinloop wheeeee
-            while !self.spi.is_read_ready() {}
+        self.spi.start();
 
-            // read a byte
-            let rxbyte = self.spi.recv8();
-            ringbuf_entry!(Trace::Rx(rxbyte));
-            bytes_read += 1;
 
-            // Deposit the byte if we're still within the bounds of the
-            // caller's incoming lease.
-            if let Some(rx_reader) = &mut rx {
-                if rx_reader.write(rxbyte).is_err() {
-                    // We're off the end. Stop checking.
-                    rx = None;
-                }
-            }
+
+        //let mut bytes_read = 0;
+        //let mut bytes_written = 0;
+
+        //let txbyte = if let Some(txbuf) = &mut tx {
+        //    if let Some(b) = txbuf.read() {
+        //        b
+        //    } else {
+        //        // We've hit the end of the lease. Stop checking.
+        //        tx = None;
+        //        0
+        //    }
+        //} else {
+        //    0
+        //};
+        //ringbuf_entry!(Trace::Tx(txbyte));
+        //sys_log!("send byte {:x}", txbyte);
+//        self.spi.send_bytes(tx);
+        //bytes_written += 1;
+
+        //while bytes_read < transfer_size {
+        //    sys_log!("byte read: {}/{}", bytes_read, transfer_size);
+        //    if bytes_written < transfer_size {
+        //        sys_log!("byte write: {}/{}", bytes_written, transfer_size);
+        //        let txbyte = if let Some(txbuf) = &mut tx {
+        //            if let Some(b) = txbuf.read() {
+        //                b
+        //            } else {
+        //                // We've hit the end of the lease. Stop checking.
+        //                tx = None;
+        //                0
+        //            }
+        //        } else {
+        //            0
+        //        };
+        //        ringbuf_entry!(Trace::Tx(txbyte));
+        //        self.spi.send8(txbyte);
+        //        bytes_written += 1;
+        //    }
+        //    sys_log!("here 2");
+
+        //    // spinloop wheeeee
+        while !self.spi.is_read_ready() {
+            sys_log!("spinning");
         }
 
-        // Deassert (set) CS, if we asserted it in the first place.
+        //sys_log!("here 3: {:x?}", rxbuf);
+        //    // read a byte
+        //    let rxbyte = self.spi.recv8();
+        //    ringbuf_entry!(Trace::Rx(rxbyte));
+        //    bytes_read += 1;
+        //    sys_log!("here 3");
+
+        //    // Deposit the byte if we're still within the bounds of the
+        //    // caller's incoming lease.
+        //    if let Some(rx_reader) = &mut rx {
+        //        if rx_reader.write(rxbyte).is_err() {
+        //            // We're off the end. Stop checking.
+        //            rx = None;
+        //        }
+        //    }
+        //}
+
+        //// Deassert (set) CS, if we asserted it in the first place.
         if !cs_override {
             sys_log!("set high");
-            self.gpio.set_high(device.cs_port, device.cs_pin);
+            self.gpio.set_low(device.cs_port, device.cs_pin);
         //    self.gpio.gpio_set_reset(1 << device.cs, 0).unwrap();
         }
+
+        sys_log!("DONE");
+        loop {}
 
         Ok(())
     }
@@ -438,28 +434,21 @@ fn activate_spi_for_device(
     let mux_params = CONFIG.mux_options[dev_params.mux_index];
 
     let cpha = if dev_params.spi_mode == 0 || dev_params.spi_mode == 2 {
-        device::spi0::config::CPHA_A::LEADING
+        device::spim0::config::CPHA_A::LEADING
     } else {
-        device::spi0::config::CPHA_A::TRAILING
+        device::spim0::config::CPHA_A::TRAILING
     };
 
     // Configure the GPIO output in accordance with what nRF wants us to use
     let cpol = if dev_params.spi_mode == 0 || dev_params.spi_mode == 1 {
         gpio.set_low(mux_params.sck_port, mux_params.sck_pin).unwrap();
-        device::spi0::config::CPOL_A::ACTIVEHIGH
+        device::spim0::config::CPOL_A::ACTIVEHIGH
     } else {
         gpio.set_high(mux_params.sck_port, mux_params.sck_pin).unwrap();
-        device::spi0::config::CPOL_A::ACTIVELOW
+        device::spim0::config::CPOL_A::ACTIVELOW
     };
 
-    spi.configure_transmission_parameters(
-        dev_params.frequency,
-        device::spi0::config::ORDER_A::MSBFIRST,
-        cpha,
-        cpol,
-    );
-
-    spi.enable(
+    spi.configure_pins(
         mux_params.miso_port,
         mux_params.miso_pin,
         mux_params.mosi_port,
@@ -467,6 +456,15 @@ fn activate_spi_for_device(
         mux_params.sck_port,
         mux_params.sck_pin,
     );
+
+    spi.configure_transmission_parameters(
+        dev_params.frequency,
+        device::spim0::config::ORDER_A::MSBFIRST,
+        cpha,
+        cpol,
+    );
+
+    spi.enable();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -480,10 +478,10 @@ fn activate_spi_for_device(
 /// controller.
 #[derive(Copy, Clone)]
 struct ServerConfig {
-    /// Pointer to this controller's register block. Don't let the `spi0` fool
+    /// Pointer to this controller's register block. Don't let the `spim0` fool
     /// you, they all have that type. This needs to match a peripheral in your
     /// task's `uses` list for this to work. (spitwi0, spitwi1, spi2)
-    registers: *const device::spi0::RegisterBlock,
+    registers: *const device::spim0::RegisterBlock,
     /// We allow for an individual SPI controller to be switched between several
     /// physical sets of pads. The mux options for a given server configuration
     /// are numbered from 0 and correspond to this slice.
@@ -515,7 +513,7 @@ struct DeviceDescriptor {
     /// Number of the pin to use for chip select (0-31)
     cs_pin: Pin,
     /// SPI transmit frequency
-    frequency: device::spi0::frequency::FREQUENCY_A,
+    frequency: device::spim0::frequency::FREQUENCY_A,
     /// SPI mode, describing clock phase/polarity
     spi_mode: usize,
 }

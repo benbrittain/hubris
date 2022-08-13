@@ -2,97 +2,24 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! A driver for the nRF52 SPI, in host mode.
-//!
-//! This is the core logic, separated from the IPC server.
-//!
-//! The nRF52 has a very simple SPI compared to some other MCUs.
-//!
-//! # First, a note on DMA
-//!
-//! the nRF52 has a version of SPI that uses DMA. it's better than this. we
-//! should use it. I got most of the way through implementing this using the
-//! non-DMA interface so I'm going to keep going but it's worse than the DMA
-//! version would be and requires the SPI task to do things after every byte
-//! of transmission. The non-DMA version is also considered "deprecated", but
-//! I don't know what that actually implies for Nordic stuff.
-//!
-//! # Clocking
-//!
-//! tick tock tick tock tick tock tick tock
-//!
-//! The FREQUENCY register allows the following pre-determined speeds, with
-//! no further divisions:
-//!
-//! - 125KHz
-//! - 250KHz
-//! - 500KHz
-//! - 1MHz
-//! - 2MHz
-//! - 4MHz
-//! - 8MHz
-//!
-//!
-//! # Double Buffering
-//!
-//! nRF52 SPI only allows transimitting 8 bits at a time. It's also
-//! double-buffered, which for us means we get 8 SPI-clock cycles of
-//! leeway in the code timing if we want to hit max throughput, which should
-//! be plenty.
-//!
-//! This means that at the start of a transaction you'll have two writes
-//! without a read in between, and at the end you'll have two reads without
-//! a write.
-//!
-//! You don't actually have to do this though. You can transmit a byte and
-//! then wait until you receive a byte before putting the next byte into the
-//! transmit buffer. You won't sustain the full transfer rate doing this.
-//!
-//!
-//! # Interrupt Control
-//!
-//! Interrupts are turned on by writing 1 to INTENSET and turned off by
-//! writing 1 to INTENCLR, which is a different register.
-//!
-//!
-//! # Pin Selection
-//!
-//! The SPI can use any pins 0-31 for any function. This differs from other
-//! controllers, which often have specific pins tied to specific SPI devices.
-//! Pins must also be configured with the GPIO register such that
-//! - miso is an input
-//! - mosi is an output
-//! - sck is an output
-//! - all the pins are pushpull with no pull-up.
-//!
-//! GPIO doesn't have a concept of alternate functions though, so that's all
-//! you need to do.
-//!
-//!
-//! # Register Initialization
-//!
-//! The SPI shares some address space with other peripherals (like TWI).
-//! Nordic recommends fully intializing all SPI-related registers, as values
-//! are not reset when changing the peripheral mode.
-//!
-//!
-//! # Why we use spi0 in the code
-//!
-//! We use spi0 for everything because its the only actual spi module. the pac
-//! crate just re-exports spi0 as spi1/spi2 so you can use those as aliases.
-//! The register block is really what determines which spi we're using.
-
 #![no_std]
 
 use drv_nrf52_gpio_common::{Pin, Port};
 use nrf52840_pac as device;
+use userlib::sys_log;
+
+const TX_BUFFER_SIZE: usize = 16;
+static mut TX_BUFFER: [u8; TX_BUFFER_SIZE] = [0; TX_BUFFER_SIZE];
+
+const RX_BUFFER_SIZE: usize = 16;
+static mut RX_BUFFER: [u8; RX_BUFFER_SIZE] = [0; RX_BUFFER_SIZE];
 
 pub struct Spi {
-    reg: &'static device::spi0::RegisterBlock,
+    reg: &'static device::spim3::RegisterBlock,
 }
 
-impl From<&'static device::spi0::RegisterBlock> for Spi {
-    fn from(reg: &'static device::spi0::RegisterBlock) -> Self {
+impl From<&'static device::spim3::RegisterBlock> for Spi {
+    fn from(reg: &'static device::spim3::RegisterBlock) -> Self {
         Self { reg }
     }
 }
@@ -103,18 +30,18 @@ impl Spi {
     /// configures SPI mode 0 at the lowest frequency.
     pub fn initialize(&mut self) {
         self.reg.enable.write(|w| w.enable().disabled());
-        self.reg.intenclr.write(|w| w.ready().clear());
+        self.reg.intenclr.write(|w| w.started().clear());
+        self.reg.intenclr.write(|w| w.stopped().clear());
         self.configure_transmission_parameters(
-            device::spi0::frequency::FREQUENCY_A::K125,
-            device::spi0::config::ORDER_A::MSBFIRST,
-            device::spi0::config::CPHA_A::LEADING,
-            device::spi0::config::CPOL_A::ACTIVEHIGH,
+            device::spim0::frequency::FREQUENCY_A::K125,
+            device::spim0::config::ORDER_A::MSBFIRST,
+            device::spim0::config::CPHA_A::LEADING,
+            device::spim0::config::CPOL_A::ACTIVEHIGH,
         );
     }
 
-    /// Reconfigure the SPI pinout and enable it. nRF docs indicate that the
-    /// pinout doesn't persist after the peripheral is disabled.
-    pub fn enable(
+    /// Reconfigure the SPI pinout.
+    pub fn configure_pins(
         &mut self,
         miso_port: Port,
         miso_pin: Pin,
@@ -123,18 +50,6 @@ impl Spi {
         sck_port: Port,
         sck_pin: Pin,
     ) {
-        // Expected preconditions:
-        // - SPI is disabled.
-        // - Other peripherals sharing the SPI device's address space have
-        // been turned off if they were previously in use. There is a finite
-        // set of other peripherals that share the address space so technically
-        // we could turn them all off here just in case, but we don't right now.
-        // - miso/mosi/sck have been correctly configured in GPIO
-        //   - They all should be push-pull, with no pull-up
-        //   - miso is an input
-        //   - mosi/sck are outputs
-
-        // nRF52 only has 32 pins, pin selection must be in range 0-31
         assert!(miso_pin.0 <= 31);
         assert!(mosi_pin.0 <= 31);
         assert!(sck_pin.0 <= 31);
@@ -151,6 +66,11 @@ impl Spi {
             w.port().bit(sck_port.0 == 1).pin().bits(sck_pin.0)
         });
 
+    }
+
+    pub fn enable(
+        &mut self,
+    ) {
         self.reg.enable.write(|w| w.enable().enabled());
     }
 
@@ -163,16 +83,15 @@ impl Spi {
     /// Configure transmission parameters
     pub fn configure_transmission_parameters(
         &mut self,
-        frequency: device::spi0::frequency::FREQUENCY_A,
-        order: device::spi0::config::ORDER_A,
-        cpha: device::spi0::config::CPHA_A,
-        cpol: device::spi0::config::CPOL_A,
+        frequency: device::spim0::frequency::FREQUENCY_A,
+        order: device::spim0::config::ORDER_A,
+        cpha: device::spim0::config::CPHA_A,
+        cpol: device::spim0::config::CPOL_A,
     ) {
         self.reg
             .frequency
             .write(|w| w.frequency().variant(frequency));
 
-        #[rustfmt::skip]
         self.reg.config.write(|w| {
             w
                 .order().variant(order)
@@ -184,26 +103,40 @@ impl Spi {
     /// Start a transaction. This just clears out the read buffer and the ready
     /// flag.
     pub fn start(&mut self) {
-        // Read a byte just to clear the read event in case its set
-        let _ = self.recv8();
+        sys_log!("start txbuffer: {:x?}", TX_BUFFER);
+        self.reg.events_end.reset();
+        self.reg.tasks_start.write(|w| w.tasks_start().set_bit());
+        while !self.reg.events_end.read().events_end().bit_is_set() {}
+        sys_log!("RX BUFFER AFTER EVENT_END: {:x?}", RX_BUFFER);
     }
 
     /// Checks if the ready flag is set. The ready flag is set whenever the SPI
     /// peripheral provides a new byte in the RXD read-register, and remains set
     /// until we clear it. recv8 clears this.
     pub fn is_read_ready(&self) -> bool {
-        self.reg.events_ready.read().bits() != 0
+        if self.reg.events_end.read().events_end().bit_is_set() {
+            self.reg.events_end.reset();
+            true
+        } else {
+            false
+        }
     }
 
     /// Stuffs one byte of data into the SPI TX register.
-    ///
-    /// SPI is double buffered, so you can write two bytes immediatley at the
-    /// start of a transaction to keep stuff moving along smoothly. After that,
-    /// wait for `is_read_ready()`, then call `recv8()` before sending another
-    /// byte.
-    pub fn send8(&mut self, byte: u8) {
-        // There's no "safe" way to put data into txd. thanks pac crate.
-        self.reg.txd.write(|w| unsafe { w.txd().bits(byte) });
+    pub fn send_bytes(&mut self, bytes: &[u8]) {
+        unsafe {
+            TX_BUFFER.clone_from_slice(&bytes[0..16]);
+        }
+        self.reg.txd.ptr.write(|w| unsafe { w.ptr().bits(TX_BUFFER.as_ptr() as u32) });
+        self.reg.txd.maxcnt.write(|w| unsafe { w.maxcnt().bits(bytes.len() as u16) });
+    }
+
+    pub fn recv_bytes(&mut self, len: usize) {
+        //unsafe {
+        //    RX_BUFFER.clone_from_slice(&bytes[0..16]);
+        //}
+        self.reg.rxd.ptr.write(|w| unsafe { w.ptr().bits(RX_BUFFER.as_ptr() as u32) });
+        self.reg.rxd.maxcnt.write(|w| unsafe { w.maxcnt().bits(len as u16) });
     }
 
     /// Pulls one byte of data from the SPI RX register. Also clears the
@@ -214,19 +147,22 @@ impl Spi {
     /// - There must be at least one byte of data in the receive register
     ///   (check `is_read_ready()`). Otherwise you'll just get some undefined data
     pub fn recv8(&mut self) -> u8 {
+        todo!()
         // the spec sheet is not terribly clear on whether you have to
         // manually zero the events_ready register. I (artemis) experimented
         // with it and found that you do in fact need to do this.
-        self.reg.events_ready.write(|w| unsafe { w.bits(0) });
-        let b = self.reg.rxd.read().rxd().bits();
-        b
+        //self.reg.events_ready.write(|w| unsafe { w.bits(0) });
+        //let b = self.reg.rxd.read().rxd().bits();
+        //b
     }
 
     pub fn enable_transfer_interrupts(&mut self) {
-        self.reg.intenset.write(|w| w.ready().set());
+        todo!()
+        //self.reg.intenset.write(|w| w.ready().set());
     }
 
     pub fn disable_transfer_interrupts(&mut self) {
-        self.reg.intenclr.write(|w| w.ready().clear());
+        //self.reg.intenclr.write(|w| w.ready().clear());
+        todo!()
     }
 }

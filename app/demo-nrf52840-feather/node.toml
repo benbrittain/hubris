@@ -6,7 +6,7 @@ stacksize = 896
 
 [kernel]
 name = "demo-nrf52840-feather"
-requires = {flash = 32768, ram = 3072}
+requires = {flash = 32768, ram = 2928}
 features = ["itm"]
 
 [tasks.jefe]
@@ -34,7 +34,8 @@ start = true
 [tasks.gpio]
 name = "drv-nrf52840-gpio"
 priority = 2
-max-sizes = {flash = 1024, ram = 1024}
+features = ["userlib/log-itm"]
+max-sizes = {flash = 4096, ram = 1024}
 start = true
 uses = ["gpio0"]
 
@@ -66,22 +67,55 @@ start = true
 features = ["userlib/log-itm"]
 task-slots = ["aether"]
 
-[tasks.blinky]
-name = "task-blinky"
-priority = 4
-max-sizes = {flash = 16384, ram = 1024}
+# [tasks.blinky]
+# name = "task-blinky"
+# priority = 4
+# max-sizes = {flash = 1024, ram = 1024}
+# start = true
+# task-slots = ["gpio"]
+
+[tasks.air_quality]
+name = "task-air-quality"
+priority = 3
+max-sizes = {flash = 65536, ram = 8192 }
 start = true
+features = ["itm", "userlib/log-itm"]
+# task-slots = ["uart", "spi"]
+task-slots = ["spi"]
+stacksize = 1024
+
+[tasks.spi]
+name = "drv-nrf52-spi-server"
+priority = 2
+max-sizes = {flash = 16384, ram = 2048}
+features = ["spim3", "userlib/log-itm"]
+uses = ["spim3"]
+start = true
+stacksize = 880
 task-slots = ["gpio"]
 
-# [tasks.air_quality]
-# name = "task-air-quality"
-# priority = 3
-# max-sizes = {flash = 32768, ram = 16384 }
-# start = true
-# features = ["itm"]
-# task-slots = ["uart"]
-# stacksize = 8192
+[tasks.spi.config.spi]
+global_config = "spi3"
 
+[config]
+
+[config.spi.spi3]
+controller = 3
+
+[config.spi.spi3.mux_options.bme688]
+mosi_port = 0
+mosi_pin = 13
+sck_port = 0
+sck_pin = 14
+miso_port = 0
+miso_pin = 15
+
+[config.spi.spi3.devices.bme688]
+mux = "bme688"
+cs_port = 0
+cs_pin = 8
+frequency = "K125"
+spi_mode = 0
 
 [config.aether]
 pan_id = 0x1eaf

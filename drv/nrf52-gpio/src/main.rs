@@ -84,6 +84,8 @@ impl idl::InOrderGpioImpl for GpioServer<'_> {
         let pin_state = port.out.read().bits();
         let new_state = pin_state ^ (1 << pin.0 as u32);
         port.out.write(|w| unsafe { w.bits(new_state) });
+        let pin_state = port.out.read().bits();
+        sys_log!("pin toggle state: {:b}", pin_state);
 
         Ok(())
     }
@@ -103,7 +105,8 @@ impl idl::InOrderGpioImpl for GpioServer<'_> {
 
         let set_pin = 1 << pin.0 as u32;
         port.outset.write(|w| unsafe { w.bits(set_pin) });
-
+        let pin_state = port.out.read().bits();
+        sys_log!("pin set_high state: {:b}", pin_state);
         Ok(())
     }
 
@@ -123,7 +126,7 @@ impl idl::InOrderGpioImpl for GpioServer<'_> {
         let clear_pin = 1 << pin.0 as u32;
         port.outclr.write(|w| unsafe { w.bits(clear_pin) });
         let pin_state = port.out.read().bits();
-//       sys_log!("pin state: {:b}", pin_state);
+        sys_log!("pin set_low state: {:b}", pin_state);
         Ok(())
     }
 }
