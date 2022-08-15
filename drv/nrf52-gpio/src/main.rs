@@ -80,17 +80,13 @@ impl idl::InOrderGpioImpl for GpioServer<'_> {
             Port(1) => self.p1,
             _ => panic!("Invalid port"),
         };
-
         let pin_state = port.out.read().bits();
         let new_state = pin_state ^ (1 << pin.0 as u32);
         port.out.write(|w| unsafe { w.bits(new_state) });
-        let pin_state = port.out.read().bits();
-        sys_log!("pin toggle state: {:b}", pin_state);
-
         Ok(())
     }
 
-    fn set_high(
+    fn set(
         &mut self,
         _msg: &RecvMessage,
         port: Port,
@@ -102,15 +98,12 @@ impl idl::InOrderGpioImpl for GpioServer<'_> {
             Port(1) => self.p1,
             _ => panic!("Invalid port"),
         };
-
         let set_pin = 1 << pin.0 as u32;
         port.outset.write(|w| unsafe { w.bits(set_pin) });
-        let pin_state = port.out.read().bits();
-        sys_log!("pin set_high state: {:b}", pin_state);
         Ok(())
     }
 
-    fn set_low(
+    fn clear(
         &mut self,
         _msg: &RecvMessage,
         port: Port,
@@ -125,8 +118,6 @@ impl idl::InOrderGpioImpl for GpioServer<'_> {
 
         let clear_pin = 1 << pin.0 as u32;
         port.outclr.write(|w| unsafe { w.bits(clear_pin) });
-        let pin_state = port.out.read().bits();
-        sys_log!("pin set_low state: {:b}", pin_state);
         Ok(())
     }
 }

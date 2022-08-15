@@ -48,7 +48,7 @@ Interface(
                 err: CLike("GpioError"),
             ),
         ),
-        "set_high": (
+        "set": (
             args: {
                 "port": (
                     type: "Port",
@@ -64,7 +64,7 @@ Interface(
                 err: CLike("GpioError"),
             ),
         ),
-        "set_low": (
+        "clear": (
             args: {
                 "port": (
                     type: "Port",

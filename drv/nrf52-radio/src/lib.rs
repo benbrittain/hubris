@@ -313,7 +313,6 @@ impl Radio<'_> {
         self.turn_off();
         self.set_mode(DriverState::CcaTx);
         userlib::hl::sleep_for(40);
-        userlib::sys_log!("transmit");
 
         self.configure_packet_buffer(&self.transmit_buffer);
         self.initialize();

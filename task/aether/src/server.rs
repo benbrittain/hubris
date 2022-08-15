@@ -8,7 +8,6 @@ use task_aether_api::{
     UdpMetadata,
 };
 
-
 use userlib::*;
 
 /// Size of buffer that must be allocated to use `dispatch`.
@@ -236,7 +235,6 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
         let socket = self.get_tcp_socket_mut(socket as usize)?;
 
         match socket.send(|buf| {
-            sys_log!("buffer {}, payload {}", buf.len(), payload.len());
             if buf.len() < payload.len() {
                 panic!("buffer stuff to do ben!");
             }

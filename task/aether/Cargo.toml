@@ -11,7 +11,7 @@ cortex-m = {version = "0.7", features = ["inline-asm"]}
 cortex-m-semihosting = {version = "*", optional = true}
 nrf52-radio = { path = "../../drv/nrf52-radio/" }
 nrf52840-pac = "*"
-log = { version = "^0.4.5", default-features = false, features = [] }
+log = { version = "^0.4.5", optional=true, default-features = false, features = [] }
 idol-runtime = {git = "https://github.com/oxidecomputer/idolatry.git"}
 num-traits = {version = "0.2", default-features = false}
 serde = {version = "1", default-features = false, features = ["derive"]}
@@ -40,6 +40,7 @@ syn = "*"
 itm = [ "userlib/log-itm" ]
 semihosting = [ "userlib/log-semihosting", "cortex-m-semihosting", "nrf52-radio/semihosting" ]
 log-null = ["userlib/log-null"]
+log-smoltcp = ["log"]
 
 # This section is here to discourage RLS/rust-analyzer from doing test builds,
 # since test builds don't work for cross compilation.

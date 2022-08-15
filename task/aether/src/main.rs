@@ -3,7 +3,6 @@
 #![no_std]
 #![no_main]
 
-use userlib::sys_log;
 use drv_rng_api;
 use smoltcp::{
     iface::{
@@ -18,9 +17,16 @@ use smoltcp::{
         Ieee802154Address, Ieee802154Pan, IpAddress, IpCidr, SixlowpanFragKey,
     },
 };
+use userlib::sys_log;
+
+// hacky way to get logs out of smoltcp
+#[cfg(feature = "log-smoltcp")]
+static SYS_LOGGER: log_smoltcp::SysLogger = log_smoltcp::SysLogger;
 
 userlib::task_slot!(RNG, rng_driver);
 
+#[cfg(feature = "log-smoltcp")]
+mod log_smoltcp;
 mod server;
 
 /// IEEE 802.15.4 link MTU
@@ -37,25 +43,13 @@ const MAX_FRAGMENTS: usize = 2;
 static mut PACKET_FRAGMENTS: [[u8; IEEE802_LINK_MTU]; MAX_FRAGMENTS] =
     [[0; IEEE802_LINK_MTU]; MAX_FRAGMENTS];
 
-// hacky way to get logs out of smoltcp
-static SYS_LOGGER: SysLogger = SysLogger;
-struct SysLogger;
-impl log::Log for SysLogger {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() <= log::max_level()
-    }
-
-    fn log(&self, record: &log::Record) {
-        sys_log!("{} - {}", record.level(), record.args());
-    }
-    fn flush(&self) {}
-}
-
 #[export_name = "main"]
 fn main() -> ! {
     let rng = drv_rng_api::Rng::from(RNG.get_task_id());
     // Setup a logger shim so we can see the output of smoltcp.
+    #[cfg(feature = "log-smoltcp")]
     log::set_logger(&SYS_LOGGER).unwrap();
+    #[cfg(feature = "log-smoltcp")]
     log::set_max_level(log::LevelFilter::Trace);
 
     // Start up the radio.
@@ -66,13 +60,10 @@ fn main() -> ! {
     let ieee802154_addr: Ieee802154Address = radio.get_addr().into();
     let ieee802154_addr_short: Ieee802154Address =
         smoltcp::wire::Ieee802154Address::Short([0x00, 0x08]);
+
     // TODO We should set a link local address when we have SLAAC/NDISC working.
     let link_local_ipv6_addr =
         IpAddress::Ipv6(ieee802154_addr.as_link_local_address().unwrap());
-    //let mut ip_addrs = [IpCidr::new(link_local_ipv6_addr, 64)];
-    //for addr in ip_addrs {
-    //    sys_log!("IP ADDR: {}", addr);
-    //}
 
     let mut site_local_ip_bytes = [0; 16];
     // big endian so the ip addr looks pretty and like the pan_id
@@ -93,7 +84,7 @@ fn main() -> ! {
     );
     let mut ip_addrs = [
         IpCidr::new(site_local_ipv6_addr, 64),
-        //        IpCidr::new(link_local_ipv6_addr, 64),
+        IpCidr::new(link_local_ipv6_addr, 64),
     ];
     for addr in ip_addrs {
         sys_log!("IP addr: {}", addr);
@@ -158,8 +149,13 @@ fn main() -> ! {
     }
 
     userlib::sys_irq_control(RADIO_IRQ, true);
-    let mut server =
-        server::AetherServer::new(socket_handles, socket_set, iface, radio, rng);
+    let mut server = server::AetherServer::new(
+        socket_handles,
+        socket_set,
+        iface,
+        radio,
+        rng,
+    );
 
     loop {
         let poll_result = server

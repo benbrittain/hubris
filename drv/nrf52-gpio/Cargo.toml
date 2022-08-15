@@ -9,7 +9,6 @@ zerocopy = "0.6.1"
 num-traits = { version = "0.2.12", default-features = false }
 idol-runtime = {git = "https://github.com/oxidecomputer/idolatry.git"}
 cfg-if = "1"
-
 nrf52840-pac = { version = "0.11.0", default-features = false }
 drv-nrf52-gpio-api = {path = "./api"}
 drv-nrf52-gpio-common = {path = "./common"}

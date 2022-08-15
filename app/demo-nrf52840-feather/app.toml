@@ -1,126 +1,150 @@
 name = "demo-nrf52840-feather"
 target = "thumbv7em-none-eabihf"
 board = "nrf52840-feather"
-chip = "../../chips/nRF52840.toml"
+chip = "../../chips/nrf52"
 stacksize = 896
 
 [kernel]
-path = "."
 name = "demo-nrf52840-feather"
-requires = {flash = 32768, ram = 4096}
+requires = {flash = 32768, ram = 2928}
 features = ["itm"]
 
-[supervisor]
-notification = 1
-
-[outputs.flash]
-address = 0x0000_0000
-size = 0x0010_0000
-read = true
-execute = true
-
-[outputs.ram]
-address = 0x2000_0000
-size = 0x0004_0000
-read = true
-write = true
-execute = true
+[tasks.jefe]
+name = "task-jefe"
+priority = 0
+max-sizes = {flash = 8192, ram = 2048}
+start = true
+features = ["itm"]
+stacksize = 1536
 
 [tasks.idle]
-path = "../../task/idle"
 name = "task-idle"
-priority = 5
-requires = {flash = 128, ram = 256}
+priority = 6
+max-sizes = {flash = 128, ram = 256}
 stacksize = 256
 start = true
 
-[tasks.jefe]
-path = "../../task/jefe"
-name = "task-jefe"
-priority = 0
-requires = {flash = 8192, ram = 2048}
-start = true
-features = ["log-null"]
-stacksize = 1536
-
 [tasks.hiffy]
-path = "../../task/hiffy"
 name = "task-hiffy"
-features = ["rng"]
+features = ["nrf52", "rng"]
 priority = 3
-requires = {flash = 8192, ram = 16384 }
+max-sizes = {flash = 16384, ram = 16384 }
 stacksize = 2048
 start = true
 task-slots = ["rng_driver"]
 
 [tasks.rng_driver]
 name = "drv-nrf52-rng"
-priority = 3
+priority = 1
 max-sizes = {flash = 16384, ram = 4096}
 uses = ["rng"]
 start = true
 stacksize = 2200
 
+
 [tasks.gpio]
-path = "../../drv/nrf52-gpio/"
 name = "drv-nrf52840-gpio"
 priority = 2
-requires = {flash = 8192, ram = 4096}
 features = ["userlib/log-itm"]
-stacksize = 2048
+max-sizes = {flash = 4096, ram = 1024}
 start = true
 uses = ["gpio0"]
 
-[tasks.blinky]
-path = "../../task/blinky"
-name = "task-blinky"
-priority = 4
-requires = {flash = 16384, ram = 1024}
+[tasks.uart]
+name = "drv-nrf52-uart"
+priority = 3
+max-sizes = {flash = 8192, ram = 4096}
 start = true
 task-slots = ["gpio"]
-features = ["itm"]
+uses = ["uarte0"]
+interrupts = {"uarte0.irq" = 1}
 
-[tasks.spi]
-path = "../../drv/nrf52-spi-server"
-name = "drv-nrf52-spi-server"
-priority = 2
-requires = {flash = 16384, ram = 2048}
-features = ["spi0", "userlib/log-itm"]
-uses = ["spi0"]
+[tasks.aether]
+name = "task-aether"
+priority = 1
+max-sizes = {flash = 131072, ram = 32768 }
+stacksize = 16384
 start = true
-stacksize = 880
-task-slots = ["gpio"]
-
-[tasks.spi.config.spi]
-global_config = "spi0"
-
-[tasks.bme688]
-path = "../../task/bme688"
-name = "task-bme688"
-priority = 4
-requires = {flash = 16384, ram = 1024}
-start = true
-task-slots = ["gpio", "spi"]
+# features = ["itm", "log-smoltcp"]
 features = ["itm"]
+uses = ["radio", "ficr", "rng", "clock"]
+task-slots = ["rng_driver"]
+interrupts = { "radio.irq" = 1 }
 
+# [tasks.udpecho]
+# name = "task-udpecho"
+# priority = 3
+# max-sizes = {flash = 32768, ram = 8192}
+# stacksize = 4096
+# start = true
+# features = ["userlib/log-itm"]
+# task-slots = ["aether"]
 
-[config]
+# [tasks.blinky]
+# name = "task-blinky"
+# priority = 4
+# max-sizes = {flash = 1024, ram = 1024}
+# start = true
+# task-slots = ["gpio"]
 
-[config.spi.spi0]
-controller = 0
+# [tasks.air_quality]
+# name = "task-air-quality"
+# priority = 3
+# max-sizes = {flash = 65536, ram = 8192 }
+# start = true
+# features = ["itm", "userlib/log-itm"]
+# # task-slots = ["uart", "spi"]
+# task-slots = ["spi"]
+# stacksize = 1024
 
-[config.spi.spi0.mux_options.bme688]
-miso_port = 0
-miso_pin = 15
-mosi_port = 0
-mosi_pin = 13
-sck_port = 0
-sck_pin = 14
+[tasks.mqtt]
+name = "task-mqtt"
+priority = 3
+max-sizes = {flash = 65536, ram = 32768 }
+start = true
+features = ["userlib/log-itm"]
+task-slots = ["aether"]
+stacksize = 16384
 
-[config.spi.spi0.devices.bme688]
-mux = "bme688"
-cs_port = 0
-cs_pin = 8
-frequency = "M8"
-spi_mode = 3
+# [tasks.spi]
+# name = "drv-nrf52-spi-server"
+# priority = 2
+# max-sizes = {flash = 16384, ram = 2048}
+# features = ["spim3", "userlib/log-itm"]
+# uses = ["spim3"]
+# start = true
+# stacksize = 880
+# task-slots = ["gpio"]
+# 
+# [tasks.spi.config.spi]
+# global_config = "spi3"
+# 
+# [config]
+# 
+# [config.spi.spi3]
+# controller = 3
+# 
+# [config.spi.spi3.mux_options.bme688]
+# mosi_port = 0
+# mosi_pin = 13
+# sck_port = 0
+# sck_pin = 14
+# miso_port = 0
+# miso_pin = 15
+# 
+# [config.spi.spi3.devices.bme688]
+# mux = "bme688"
+# cs_port = 0
+# cs_pin = 8
+# frequency = "K125"
+# spi_mode = 0
+
+[config.aether]
+pan_id = 0x1eaf
+
+[config.aether.sockets.mqtt]
+kind = "tcp"
+owner = {name = "mqtt", notification = 1}
+tx = { packets = 16, bytes = 1024 }
+rx = { packets = 16, bytes = 1024 }
 
