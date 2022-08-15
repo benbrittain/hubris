@@ -24,7 +24,9 @@ fn socket_addr_to_metadata(
     addr: SocketAddr,
 ) -> Result<TcpMetadata, AetherError> {
     let (ip, port) = match addr {
-        SocketAddr::V6(addrv6) => (Ipv6Address(addrv6.ip().octets()), addrv6.port()),
+        SocketAddr::V6(addrv6) => {
+            (Ipv6Address(addrv6.ip().octets()), addrv6.port())
+        }
         _ => return Err(AetherError::Unknown),
     };
     Ok(TcpMetadata { addr: ip, port })
@@ -70,11 +72,9 @@ impl TcpClientStack for NetworkLayer {
         bytes: &[u8],
     ) -> Result<usize, MqError<<Self as TcpClientStack>::Error>> {
         sys_log!("trying to send: {:x?}", bytes);
-        let r = self.aether
-            .send_tcp_data(self.socket, bytes);
+        let r = self.aether.send_tcp_data(self.socket, bytes);
         sys_log!("send {:?}", r);
-        r.map_err(|e| MqError::Other(e))
-            .map(|e| e as usize)
+        r.map_err(|e| MqError::Other(e)).map(|e| e as usize)
     }
     fn receive(
         &mut self,
@@ -85,14 +85,14 @@ impl TcpClientStack for NetworkLayer {
             match self.aether.recv_tcp_data(self.socket, bytes) {
                 Ok(len) => {
                     return Ok(len as usize);
-                },
+                }
                 Err(AetherError::QueueEmpty) => {
                     // Our incoming queue is empty. Wait for more packets.
                     sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
                 }
                 e => {
                     sys_log!("Unknown recv: {:?}", e);
-                    break
+                    break;
                 }
             }
         }
@@ -128,33 +128,25 @@ impl minimq::embedded_time::Clock for ClockLayer {
 
 #[export_name = "main"]
 fn main() -> ! {
-    let aether = AETHER.get_task_id();
-    let aether = Aether::from(aether);
-
-    const SOCKET: SocketName = SocketName::echo;
-
+    let aether = Aether::from(AETHER.get_task_id());
     let mut mqtt: Minimq<_, _, 256, 16> = Minimq::new(
         "fd00:1eaf::1".parse().unwrap(),
         "mqtt-aether",
         NetworkLayer {
             aether,
-            socket: SOCKET,
-        }, //(SocketName::echo),
+            socket: SocketName::mqtt,
+        },
         ClockLayer {},
     )
     .unwrap();
-    sys_log!("made the mqtt obj!");
 
     let mut subscribed = false;
 
     loop {
-        sys_log!("here");
         if mqtt.client.is_connected() && !subscribed {
-        sys_log!("here 2");
-            sys_log!("subs {:?}", mqtt.client.subscribe("topic", &[]));
+            mqtt.client.subscribe("topic", &[]);
             subscribed = true;
         }
-        sys_log!("here 3");
 
         mqtt.poll(|client, topic, message, properties| {
             sys_log!("here 4");

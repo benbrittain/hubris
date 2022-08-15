@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 pub struct SocketConfig {
     pub kind: String,
     pub owner: TaskNote,
-    pub port: u16,
+    pub port: Option<u16>,
     pub tx: BufSize,
     pub rx: BufSize,
 }

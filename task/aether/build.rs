@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 pub struct SocketConfig {
     pub kind: String,
     pub owner: TaskNote,
-    pub port: u16,
+    pub port: Option<u16>,
     pub tx: BufSize,
     pub rx: BufSize,
 }
@@ -125,12 +125,19 @@ fn generate_aether_config(
 fn generate_port_table(
     config: &AetherConfig,
 ) -> Result<TokenStream, Box<dyn std::error::Error>> {
-    let consts = config.sockets.values().map(|socket| {
-        let port = socket.port;
-        quote::quote! { #port }
+    let consts = config.sockets.values().filter_map(|socket| {
+        if socket.kind == "udp" {
+            let port = socket.port;
+            Some(quote::quote! { #port })
+        } else {
+            if socket.port.is_some() {
+                panic!("Do not specify a port except when using udp");
+            }
+            None
+        }
     });
 
-    let n = config.sockets.len();
+    let n = config.sockets.iter().filter(|(_, s)| s.kind == "udp").count();
 
     Ok(quote::quote! {
         pub(crate) const UDP_SOCKET_PORTS: [u16; #n] = [

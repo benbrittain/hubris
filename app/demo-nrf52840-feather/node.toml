@@ -141,10 +141,9 @@ stacksize = 16384
 [config.aether]
 pan_id = 0x1eaf
 
-[config.aether.sockets.echo]
+[config.aether.sockets.mqtt]
 kind = "tcp"
 owner = {name = "mqtt", notification = 1}
-port = 7
 tx = { packets = 16, bytes = 1024 }
 rx = { packets = 16, bytes = 1024 }
 
