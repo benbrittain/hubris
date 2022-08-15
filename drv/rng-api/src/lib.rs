@@ -89,7 +89,7 @@ impl From<Error> for RngError {
 // }
 #[cfg(feature = "custom-getrandom")]
 pub fn rng_getrandom(dest: &mut [u8]) -> Result<(), Error> {
-    task_slot!(RNG, rng_driver);
+    userlib::task_slot!(RNG, rng_driver);
     let task_id = RNG.get_task_id();
     match Rng::from(task_id).fill(dest) {
         Ok(_) => Ok(()),

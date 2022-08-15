@@ -1,12 +1,14 @@
 use idol_runtime::{ClientError, Leased, NotificationHandler, RequestError};
 use smoltcp::iface::{Interface, SocketHandle, SocketSet};
 use smoltcp::socket::{tcp, udp};
-
 use crate::RADIO_IRQ;
+use rand::Rng;
 use task_aether_api::{
     AetherError, Ieee802154Address, Ipv6Address, SocketName, TcpMetadata,
     UdpMetadata,
 };
+
+
 use userlib::*;
 
 /// Size of buffer that must be allocated to use `dispatch`.
@@ -23,6 +25,7 @@ pub struct AetherServer<'a> {
     socket_set: SocketSet<'a>,
     iface: Interface<'a>,
     device: nrf52_radio::Radio<'a>,
+    rng: drv_rng_api::Rng,
 }
 
 impl<'a> AetherServer<'a> {
@@ -31,12 +34,14 @@ impl<'a> AetherServer<'a> {
         socket_set: SocketSet<'a>,
         iface: Interface<'a>,
         device: nrf52_radio::Radio<'a>,
+        rng: drv_rng_api::Rng,
     ) -> Self {
         Self {
             socket_handles,
             socket_set,
             iface,
             device,
+            rng,
         }
     }
 
@@ -154,7 +159,34 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
         socket: SocketName,
         metadata: TcpMetadata,
     ) -> Result<(), RequestError<AetherError>> {
-        unreachable!()
+        if crate::generated::SOCKET_OWNERS[socket as usize].0.index()
+            != msg.sender.index()
+        {
+            return Err(AetherError::WrongOwner.into());
+        }
+
+        // NOTE
+        // This doesn't use get_tcp_socket_mut because of double borrow problem
+        // This can probably be refactored to be cleaner
+        let remote_ep =
+            smoltcp::wire::IpEndpoint::from((metadata.addr, metadata.port));
+        let local_ep: u16 = self.rng.gen_range(1024..65535);
+        let handle = self
+            .socket_handles
+            .get(socket as usize)
+            .cloned()
+            .ok_or(RequestError::Fail(ClientError::BadMessageContents))?;
+        match handle {
+            SocketHandleType::Tcp(handle) => {
+                self.socket_set.get_mut::<tcp::Socket>(handle).connect(
+                    self.iface.context(),
+                    remote_ep,
+                    local_ep,
+                );
+                Ok(())
+            }
+            _ => Err(AetherError::WrongSocketType.into()),
+        }
     }
 
     fn close_tcp(
@@ -186,7 +218,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
         }
 
         let socket = self.get_tcp_socket_mut(socket as usize)?;
-        Ok(socket.is_open())
+        Ok(socket.may_send())
     }
 
     fn send_tcp_data(
@@ -194,7 +226,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
         msg: &userlib::RecvMessage,
         socket: SocketName,
         payload: Leased<idol_runtime::R, [u8]>,
-    ) -> Result<(), RequestError<AetherError>> {
+    ) -> Result<u32, RequestError<AetherError>> {
         if crate::generated::SOCKET_OWNERS[socket as usize].0.index()
             != msg.sender.index()
         {
@@ -204,16 +236,20 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
         let socket = self.get_tcp_socket_mut(socket as usize)?;
 
         match socket.send(|buf| {
+            sys_log!("buffer {}, payload {}", buf.len(), payload.len());
             if buf.len() < payload.len() {
                 panic!("buffer stuff to do ben!");
             }
             payload.read_range(0..payload.len(), buf).unwrap();
             // TODO there needs to be a way of handling if this write fails
 
-            (payload.len(), 0)
+            (payload.len(), payload.len() as u32)
         }) {
-            Ok(len) => Ok(()),
-            e => panic!("couldn't send packet {:?}", e),
+            Ok(len) => Ok(len),
+            e => {
+                sys_log!("couldn't send packet {:?}", e);
+                panic!("couldn't send packet {:?}", e);
+            },
         }
     }
 

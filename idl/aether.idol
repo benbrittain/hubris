@@ -106,7 +106,7 @@ Interface(
                 "payload": (type: "[u8]", read: true),
             },
             reply: Result(
-                ok: "()",
+                ok: "u32",
                 err: CLike("AetherError"),
             ),
         ),

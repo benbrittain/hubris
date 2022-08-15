@@ -3,13 +3,12 @@
 #![no_std]
 #![no_main]
 
-use smoltcp::iface::SocketSet;
 use userlib::sys_log;
-
+use drv_rng_api;
 use smoltcp::{
     iface::{
         FragmentsCache, InterfaceBuilder, Neighbor, NeighborCache,
-        PacketAssembler,
+        PacketAssembler, SocketSet,
     },
     phy::Medium,
     socket::{tcp, udp},
@@ -19,6 +18,8 @@ use smoltcp::{
         Ieee802154Address, Ieee802154Pan, IpAddress, IpCidr, SixlowpanFragKey,
     },
 };
+
+userlib::task_slot!(RNG, rng_driver);
 
 mod server;
 
@@ -52,6 +53,7 @@ impl log::Log for SysLogger {
 
 #[export_name = "main"]
 fn main() -> ! {
+    let rng = drv_rng_api::Rng::from(RNG.get_task_id());
     // Setup a logger shim so we can see the output of smoltcp.
     log::set_logger(&SYS_LOGGER).unwrap();
     log::set_max_level(log::LevelFilter::Trace);
@@ -143,20 +145,21 @@ fn main() -> ! {
     let socket_handles = socket_handles.map(|h| h.unwrap());
 
     // Bind sockets to their ports.
-    for (&handle, &port) in socket_handles.iter().zip(&generated::UDP_SOCKET_PORTS)
+    for (&handle, &port) in
+        socket_handles.iter().zip(&generated::UDP_SOCKET_PORTS)
     {
         match handle {
             server::SocketHandleType::Udp(handle) => {
                 let udp_socket = socket_set.get_mut::<udp::Socket>(handle);
                 udp_socket.bind((site_local_ipv6_addr, port)).unwrap();
-            },
-            server::SocketHandleType::Tcp(handle) => { },
+            }
+            server::SocketHandleType::Tcp(handle) => {}
         }
     }
 
     userlib::sys_irq_control(RADIO_IRQ, true);
     let mut server =
-        server::AetherServer::new(socket_handles, socket_set, iface, radio);
+        server::AetherServer::new(socket_handles, socket_set, iface, radio, rng);
 
     loop {
         let poll_result = server

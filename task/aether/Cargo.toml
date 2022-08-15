@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+rand = { version = "*", default-features = false }
+drv-rng-api = { path = "../../drv/rng-api" }
 userlib = {path = "../../sys/userlib", features = ["panic-messages"]}
 cortex-m = {version = "0.7", features = ["inline-asm"]}
 cortex-m-semihosting = {version = "*", optional = true}

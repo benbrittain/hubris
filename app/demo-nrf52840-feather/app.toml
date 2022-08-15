@@ -46,10 +46,20 @@ stacksize = 1536
 [tasks.hiffy]
 path = "../../task/hiffy"
 name = "task-hiffy"
+features = ["rng"]
 priority = 3
 requires = {flash = 8192, ram = 16384 }
 stacksize = 2048
 start = true
+task-slots = ["rng_driver"]
+
+[tasks.rng_driver]
+name = "drv-nrf52-rng"
+priority = 3
+max-sizes = {flash = 16384, ram = 4096}
+uses = ["rng"]
+start = true
+stacksize = 2200
 
 [tasks.gpio]
 path = "../../drv/nrf52-gpio/"
