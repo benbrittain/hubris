@@ -93,8 +93,8 @@ name = "task-mqtt"
 priority = 3
 max-sizes = {flash = 65536, ram = 32768 }
 start = true
-features = ["userlib/log-itm"]
-task-slots = ["aether"]
+features = ["userlib/log-itm", "userlib/panic-messages"]
+task-slots = ["aether", "uart"]
 stacksize = 16384
 
 [config.aether]

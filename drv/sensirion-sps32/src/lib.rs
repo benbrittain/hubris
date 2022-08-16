@@ -5,18 +5,13 @@
 //! https://sensirion.com/media/documents/8600FF88/616542B5/Sensirion_PM_Sensors_Datasheet_SPS30.pdf
 //!
 //! this library is absolutly miserable with stack space.
-//!
-//! move the sensirion_hdlc crate into driver and refactor some
-//! then we can alse get rid of the arrayvec dependency.
 
 #![no_std]
 
-use arrayvec::{Array, ArrayVec};
 use drv_nrf52_uart_api::*;
-use sensirion_hdlc::{decode, encode, SpecialChars};
 use userlib::*;
 
-pub static CHARS: SpecialChars = SpecialChars::const_default();
+mod hdlc;
 
 enum Cmd {
     // Execute
@@ -55,27 +50,27 @@ pub struct VersionInfo {
 #[derive(Debug)]
 pub struct SensorData {
     /// Mass Concentration PM1.0 (μg/m^3)
-    pm1_0_mass: f32,
+    pub pm1_0_mass: f32,
     /// Mass Concentration PM2.5 (μg/m^3)
-    pm2_5_mass: f32,
+    pub pm2_5_mass: f32,
     /// Mass Concentration PM4.0 (μg/m^3)
-    pm4_0_mass: f32,
+    pub pm4_0_mass: f32,
     /// Mass Concentration PM10.0 (μg/m^3)
-    pm10_0_mass: f32,
+    pub pm10_0_mass: f32,
 
     /// Number Concentration PM0.5 (#/cm^3)
-    pm0_5_number: f32,
+    pub pm0_5_number: f32,
     /// Number Concentration PM1.0 (#/cm^3)
-    pm1_0_number: f32,
+    pub pm1_0_number: f32,
     /// Number Concentration PM2.5 (#/cm^3)
-    pm2_5_number: f32,
+    pub pm2_5_number: f32,
     /// Number Concentration PM4.0 (#/cm^3)
-    pm4_0_number: f32,
+    pub pm4_0_number: f32,
     /// Number Concentration PM10.0 (#/cm^3)
-    pm10_0_number: f32,
+    pub pm10_0_number: f32,
 
     /// Typical Partical Size (μm)
-    partical_size: f32,
+    pub partical_size: f32,
 }
 
 pub struct Sensiron {
@@ -85,7 +80,7 @@ pub struct Sensiron {
 #[derive(Debug, PartialEq)]
 pub enum SensironError {
     /// Error from HDLC data framing step
-    HdlcError(sensirion_hdlc::HDLCError),
+    HdlcError(hdlc::HDLCError),
     /// Error from the UART driver
     UartError(UartError),
     /// Response was not for the sent command
@@ -105,7 +100,7 @@ pub enum SensironError {
 }
 
 /// Look at the data section of the unframed packet
-fn view_data<'a>(bytes: &'a ArrayVec<[u8; 1024]>) -> &'a [u8] {
+fn view_data<'a>(bytes: &'a [u8]) -> &'a [u8] {
     let data_len = bytes[3];
     &bytes[4..(4 + data_len) as usize]
 }
@@ -126,7 +121,8 @@ impl Sensiron {
 
     pub fn read_value(&self) -> Result<Option<SensorData>, SensironError> {
         let cmd = [0x00, Cmd::ReadValue as u8, 0x00];
-        let resp = self.write_bytes(&cmd)?;
+        let mut resp = [0; 128];
+        self.write_bytes(&cmd, &mut resp)?;
         let data = view_data(&resp);
 
         // If we polled too frequently, this is just empty
@@ -152,7 +148,8 @@ impl Sensiron {
     pub fn start_measurement(&self) -> Result<(), SensironError> {
         let cmd = [0x00, Cmd::StartMeasurement as u8, 0x02, 0x01, 0x03];
 
-        let resp = self.write_bytes(&cmd)?;
+        let mut resp = [0; 128];
+        self.write_bytes(&cmd, &mut resp)?;
         let data = view_data(&resp);
 
         // this never returns data
@@ -166,7 +163,8 @@ impl Sensiron {
     pub fn read_version(&self) -> Result<VersionInfo, SensironError> {
         let cmd = [0x00, Cmd::DeviceVersion as u8, 0x00];
 
-        let resp = self.write_bytes(&cmd)?;
+        let mut resp = [0; 128];
+        self.write_bytes(&cmd, &mut resp)?;
         let data = view_data(&resp);
 
         Ok(VersionInfo {
@@ -183,10 +181,11 @@ impl Sensiron {
     fn write_bytes(
         &self,
         bytes: &[u8],
-    ) -> Result<ArrayVec<[u8; 1024]>, SensironError> {
+        decoded: &mut [u8],
+    ) -> Result<(), SensironError> {
         let req_cmd = bytes[1];
-        let encoded =
-            encode(&bytes, CHARS).map_err(SensironError::HdlcError)?;
+        let mut encoded = [0; 128];
+        hdlc::encode(&bytes, &mut encoded).map_err(SensironError::HdlcError)?;
 
         self.uart.write(&encoded);
 
@@ -197,9 +196,7 @@ impl Sensiron {
             .uart
             .read(0, &mut buffer)
             .map_err(SensironError::UartError)?;
-
-        let mut decoded = decode(&buffer[0..amount_read], CHARS)
-            .map_err(SensironError::HdlcError)?;
+        hdlc::decode(&buffer[0..amount_read], decoded).map_err(SensironError::HdlcError)?;
         let addr = decoded[0];
         let resp_cmd = decoded[1];
         if req_cmd != resp_cmd {
@@ -209,7 +206,7 @@ impl Sensiron {
         // check the device state bits for an error
         let device_state = decoded[2];
         match device_state {
-            0x00 => Ok(decoded),
+            0x00 => Ok(()),
             0x01 => Err(SensironError::WrongDataLength),
             0x02 => Err(SensironError::UnknownCommand),
             0x03 => Err(SensironError::AccessRight),

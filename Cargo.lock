@@ -29,6 +29,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "air-quality-messages"
+version = "0.1.0"
+dependencies = [
+ "postcard 1.0.1",
+ "serde",
+]
+
+[[package]]
 name = "ansi_term"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -55,12 +63,6 @@ name = "array-init"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfb6d71005dc22a708c7496eee5c8dc0300ee47355de6256c3b35b12b5fef596"
-
-[[package]]
-name = "arrayvec"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
 name = "arrayvec"
@@ -352,6 +354,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "cobs"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67ba02a97a2bd10f4b59b25c7973101c79642302776489e030cd13cdab09ed15"
 
 [[package]]
 name = "colored"
@@ -1209,9 +1217,8 @@ dependencies = [
 name = "drv-sensirion-sps32"
 version = "0.1.0"
 dependencies = [
- "arrayvec 0.7.2",
+ "arrayvec",
  "drv-nrf52-uart-api",
- "sensirion-hdlc",
  "userlib",
 ]
 
@@ -1932,7 +1939,7 @@ version = "0.3.1"
 source = "git+https://github.com/oxidecomputer/hif#34aace65cbf458129dcd8007715a94bc488b2931"
 dependencies = [
  "pkg-version",
- "postcard",
+ "postcard 0.7.2",
  "serde",
 ]
 
@@ -2690,6 +2697,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "postcard"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41f5465c5e5a38e04552d8fb53ebcf4f58124ab3bbd0c02add043b33f82792e5"
+dependencies = [
+ "cobs",
+ "heapless",
+ "serde",
+]
+
+[[package]]
 name = "postcard-cobs"
 version = "0.1.5-pre"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3023,13 +3041,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0bef5b7f9e0df16536d3961cfb6e84331c065b4066afb39768d0e319411f7"
 dependencies = [
  "pest",
-]
-
-[[package]]
-name = "sensirion-hdlc"
-version = "0.2.0"
-dependencies = [
- "arrayvec 0.5.2",
 ]
 
 [[package]]
@@ -3593,8 +3604,13 @@ dependencies = [
 name = "task-mqtt"
 version = "0.1.0"
 dependencies = [
+ "air-quality-messages",
+ "drv-nrf52-uart-api",
+ "drv-sensirion-sps32",
+ "heapless",
  "minimq",
  "num-traits",
+ "postcard 1.0.1",
  "serde",
  "ssmarshal",
  "task-aether-api",
