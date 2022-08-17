@@ -84,7 +84,7 @@ fn main() -> ! {
     );
     let mut ip_addrs = [
         IpCidr::new(site_local_ipv6_addr, 64),
-        IpCidr::new(link_local_ipv6_addr, 64),
+//        IpCidr::new(link_local_ipv6_addr, 64),
     ];
     for addr in ip_addrs {
         sys_log!("IP addr: {}", addr);

@@ -80,10 +80,10 @@ impl TcpClientStack for NetworkLayer {
                 Ok(len) => {
                     return Ok(len as usize);
                 }
-                Err(AetherError::QueueEmpty) => {
-                    // Our incoming queue is empty. Wait for more packets.
-                    sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
-                }
+                //Err(AetherError::QueueEmpty) => {
+                //    // Our incoming queue is empty. Wait for more packets.
+                //    sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
+                //}
                 Err(e) => {
                     return Err(MqError::Other(e));
                 }

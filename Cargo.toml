@@ -33,3 +33,5 @@ path = "sys/abi"
 [patch.crates-io]
 smoltcp = { path = '../smoltcp/' }
 bme68x-rust = { path = '../bme68x-rust/' }
+postcard = { path = '../postcard/' }
+
