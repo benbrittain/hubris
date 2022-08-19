@@ -1104,6 +1104,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "drv-nrf52-i2c"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "build-i2c",
+ "build-util",
+ "drv-i2c-api",
+ "drv-nrf52-gpio-api",
+ "nrf52840-pac",
+ "num-traits",
+ "ringbuf",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "drv-nrf52-rng"
 version = "0.1.0"
 dependencies = [
@@ -3489,8 +3505,11 @@ name = "task-air-quality"
 version = "0.1.0"
 dependencies = [
  "bme68x-rust",
+ "build-i2c",
+ "build-util",
  "cortex-m",
- "drv-spi-api",
+ "drv-i2c-api",
+ "drv-i2c-devices",
  "userlib",
 ]
 

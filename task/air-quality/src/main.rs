@@ -7,44 +7,64 @@
 #![no_std]
 #![no_main]
 
-// use drv_nrf52_uart_api::Uart;
-// use drv_sensirion_sps32::{Sensiron, SensironError};
 use bme68x_rust::{
-    Interface, CommInterface, Device, DeviceConfig, Error, Filter,
-    GasHeaterConfig, Odr, OperationMode, Sample, SensorData,
+    CommInterface, Device, DeviceConfig, Error, Filter, GasHeaterConfig,
+    Interface, Odr, OperationMode, Sample, SensorData,
 };
-use drv_spi_api as spi_api;
+use drv_i2c_api as i2c_api;
 use userlib::*;
 
-// task_slot!(UART, uart);
-task_slot!(SPI, spi);
+task_slot!(I2C, i2c_driver);
+
+include!(concat!(env!("OUT_DIR"), "/i2c_config.rs"));
 
 #[derive(Debug)]
 struct NrfSpi {
-    pub device_id: u8,
-    pub spi: spi_api::Spi,
+    pub i2c: i2c_api::I2cDevice,
 }
 
 impl Interface for NrfSpi {
     fn interface_type(&self) -> CommInterface {
-        CommInterface::SPI
+        CommInterface::I2C
     }
-    fn read(&self, reg_addr: u8, reg_data: &mut [u8]) -> Result<(), bme68x_rust::Error> {
-        sys_log!("> read");
-        sys_log!("> read > spi.write");
-        self.spi.write(self.device_id, &[reg_addr]);
-        //sys_log!("> read > spi.read");
-        //self.spi.read(self.device_id, reg_data);
-//        self.spi.write(self.device_id, reg_data);
+
+    fn read(
+        &self,
+        reg_addr: u8,
+        reg_data: &mut [u8],
+    ) -> Result<(), bme68x_rust::Error> {
+        todo!()
+        //match self.device.read_reg::<u8, u8>(Register::ID as u8) {
+        //    Ok(id) if id == ADT7420_ID => Ok(()),
+        //    Ok(id) => Err(Error::BadID { id }),
+        //    Err(code) => Err(Error::BadValidate { code }),
+        //}
+        //sys_log!("READ");
+        //self.i2c.read();
+        ////let resp = self.i2c.read();
+        ////sys_log!("> read");
+        ////sys_log!("> read > spi.write");
+        ////self.spi.write(self.device_id, &[reg_addr]);
+        ////sys_log!("> read > spi.read");
+        ////self.spi.read(self.device_id, reg_data);
+        //      //  self.spi.write(self.device_id, reg_data);
+        //      //  Ok(())
+        //Err(Error::Unknown)
+        //todo!()
+    }
+
+    fn write(
+        &self,
+        reg_addr: u8,
+        buf: &[u8],
+    ) -> Result<(), bme68x_rust::Error> {
+        sys_log!("WRITE 1");
+        self.i2c.write(&[reg_addr]);
+        sys_log!("WRITE 2");
+        self.i2c.write(buf);
         Ok(())
-//        Err(Error::Unknown)
-        //todo!()
     }
-    fn write(&self, _: u8, _: &[u8]) -> Result<(), bme68x_rust::Error> {
-        sys_log!("> write GONNA FAIL");
-        Err(Error::Unknown)
-        //todo!()
-    }
+
     fn delay(&self, _: u32) {
         userlib::hl::sleep_for(100)
         //todo!()
@@ -53,15 +73,17 @@ impl Interface for NrfSpi {
 
 #[export_name = "main"]
 fn main() -> ! {
-    let spi = spi_api::Spi::from(SPI.get_task_id());
-    // let uart = Uart::from(UART.get_task_id());
-    //let sensirion = Sensiron::new(uart);
+    let i2c_task = I2C.get_task_id();
+    let i2c = i2c_config::devices::bme68x(I2C.get_task_id())[0];
+    //let i2c = i2c_api::I2cDevice::from(I2C.get_task_id());
 
+    userlib::hl::sleep_for(100);
     sys_log!("Hello from air-quality");
-    let mut bme = match Device::initialize(NrfSpi{
-        device_id: 0,
-        spi,
-    }) {
+    sys_log!("reg write: {:?}", i2c.write(&[0xd0]));
+   // sys_log!("reg write: {:?}", i2c.write(&[0xee, 0xd0]));
+    sys_log!("reg read: {:?}", i2c.read_reg::<u8, u8>(0xd0));
+
+    let mut bme = match Device::initialize(NrfSpi { i2c }) {
         Err(e) => {
             sys_log!("Hello from air-quality {:?}", e);
             panic!();
@@ -69,6 +91,8 @@ fn main() -> ! {
         Ok(b) => b,
     };
 
+
+    sys_log!("setting config");
     // configure device
     bme.set_config(
         DeviceConfig::default()
@@ -80,16 +104,7 @@ fn main() -> ! {
     )
     .unwrap();
 
-    //
-    //    let started = sensirion.start_measurement();
-    //    if let Err(err) = started {
-    //        // The device could already be on
-    //        if err != SensironError::WrongDeviceState {
-    //            panic!("Somthing is busted with the sensor!");
-    //        }
-    //    }
-    //    hl::sleep_for(100);
-
+    sys_log!("setting heater conf");
     // configure heater
     bme.set_gas_heater_conf(
         OperationMode::Forced,
@@ -97,9 +112,10 @@ fn main() -> ! {
             .enable()
             .heater_temp(300)
             .heater_duration(100),
-    ).unwrap();
+    )
+    .unwrap();
 
-//    let time_ms = core::time::Instant::now();
+    //    let time_ms = core::time::Instant::now();
     sys_log!("Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
     for sample_count in 0..300 {
         // Set operating mode

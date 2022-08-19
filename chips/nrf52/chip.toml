@@ -49,3 +49,13 @@ interrupts = { irq = 13 }
 [spim3]
 address = 0x4002_F000
 size = 0x1000
+
+[twim0]
+address = 0x4000_3000
+size = 0x1000
+interrupts = { irq = 3 }
+
+[twim1]
+address = 0x4000_4000
+size = 0x1000
+interrupts = { irq = 4 }

@@ -21,6 +21,7 @@ drv-nrf52-gpio-api = {path = "../../drv/nrf52-gpio/api"}
 path = "../../sys/kern"
 default-features = false
 
+
 [[bin]]
 name = "demo-nrf52840-feather"
 test = false
