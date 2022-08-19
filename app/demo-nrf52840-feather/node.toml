@@ -51,7 +51,7 @@ uses = ["gpio0"]
 
 [tasks.uart]
 name = "drv-nrf52-uart"
-priority = 3
+priority = 2
 max-sizes = {flash = 8192, ram = 4096}
 start = true
 task-slots = ["gpio"]
@@ -117,7 +117,7 @@ interrupts = { "radio.irq" = 1 }
 
 [tasks.mqtt]
 name = "task-mqtt"
-priority = 3
+priority = 4
 max-sizes = {flash = 65536, ram = 32768 }
 start = true
 features = ["userlib/log-itm", "userlib/panic-messages"]

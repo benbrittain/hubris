@@ -12,6 +12,8 @@ pub enum MdnsError {
     Unknown = 1,
 }
 
+/// NOTE this should be 255, but derives aren't automatically
+/// done for that, so punt till a problem.
 pub const MAX_HOSTNAME_LEN: usize = 32;
 
 #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
@@ -20,6 +22,7 @@ pub struct HostName([u8; MAX_HOSTNAME_LEN]);
 impl From<&str> for HostName {
     fn from(hostname: &str) -> Self {
         let len = if hostname.len() > MAX_HOSTNAME_LEN {
+            panic!("FINISH THIS BEN, WE CAN GO UP TO 255");
             MAX_HOSTNAME_LEN
         } else {
             hostname.len()

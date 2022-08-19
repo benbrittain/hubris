@@ -19,6 +19,7 @@ zerocopy = "0.6"
 task-mdns-api = {path = "./api" }
 task-aether-api = {path = "../aether/api"}
 hubris-num-tasks = {path = "../../sys/num-tasks", features = ["task-enum"]}
+dnsparse = "*"
 
 
 [build-dependencies]

@@ -1,9 +1,14 @@
 use task_mdns_api::*;
 
+use crate::server::idl::InOrderMdnsImpl;
 pub use idl::INCOMING_SIZE;
+use idol_runtime::{Server, ServerOp};
+use userlib::*;
 
 #[derive(Default)]
 pub struct MdnsServer {}
+
+impl MdnsServer {}
 
 impl idl::InOrderMdnsImpl for MdnsServer {
     fn resolve(
@@ -11,11 +16,11 @@ impl idl::InOrderMdnsImpl for MdnsServer {
         msg: &userlib::RecvMessage,
         socket: HostName,
     ) -> Result<Ipv6Address, idol_runtime::RequestError<MdnsError>> {
-        todo!()
+        Ok([0; 16].into())
     }
 }
 
-mod idl {
+pub(crate) mod idl {
     use task_mdns_api::*;
     include!(concat!(env!("OUT_DIR"), "/server_stub.rs"));
 }

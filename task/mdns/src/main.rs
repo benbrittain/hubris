@@ -6,7 +6,9 @@
 #![no_main]
 
 use userlib::*;
+
 mod server;
+mod dispatch;
 
 task_slot!(AETHER, aether);
 
@@ -15,7 +17,6 @@ use task_aether_api::*;
 #[export_name = "main"]
 fn main() -> ! {
     let aether = Aether::from(AETHER.get_task_id());
-
 
     let mut server = server::MdnsServer::default();
     let mut msgbuf = [0u8; server::INCOMING_SIZE];
@@ -26,14 +27,19 @@ fn main() -> ! {
         let mut rx_data_buf = [0u8; 64];
         match aether.recv_udp_packet(SOCKET, &mut rx_data_buf) {
             Ok(metadata) => {
-                sys_log!("data: {:x?}", &rx_data_buf[..metadata.payload_len as usize]);
+                let msg = dnsparse::Message::parse(
+                    &mut rx_data_buf[..metadata.payload_len as usize],
+                );
+                sys_log!("{:?}", msg);
             }
+            // There is not a packet waiting, so let's do some.
+            // idl handling.
             Err(AetherError::QueueEmpty) => {
-                 // Our incoming queue is empty. Wait for more packets.
-                 sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
+                // Our incoming queue is empty. Wait for more packets.
+                //sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
             }
             _ => panic!(),
         }
-        // idol_runtime::dispatch(&mut msgbuf, &mut server);
+        dispatch::dispatch(&mut rx_data_buf, &mut server);
     }
 }
