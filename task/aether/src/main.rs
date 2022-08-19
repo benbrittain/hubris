@@ -7,7 +7,7 @@ use drv_rng_api;
 use smoltcp::{
     iface::{
         FragmentsCache, InterfaceBuilder, Neighbor, NeighborCache,
-        PacketAssembler, SocketSet,
+        PacketAssembler, SocketSet, SocketStorage,
     },
     phy::Medium,
     socket::{tcp, udp},
@@ -122,16 +122,20 @@ fn main() -> ! {
         .sixlowpan_out_packet_cache(&mut out_packet_buffer[..]);
     let mut iface = builder.finalize(&mut radio);
 
-    let mut socket_storage = [Default::default(); generated::SOCKET_COUNT];
+    let mut socket_storage: [_; generated::SOCKET_COUNT] = Default::default();
     let mut socket_set = SocketSet::new(&mut socket_storage[..]);
 
     let sockets = generated::construct_sockets();
     let mut socket_handles = [None; generated::SOCKET_COUNT];
-    for (socket, h) in sockets.udp.into_iter().zip(&mut socket_handles) {
-        *h = Some(server::SocketHandleType::Udp(socket_set.add(socket)));
+
+    let mut socket_idx = 0;
+    for socket in sockets.udp {
+        socket_handles[socket_idx] = Some(server::SocketHandleType::Udp(socket_set.add(socket)));
+        socket_idx += 1;
     }
-    for (socket, h) in sockets.tcp.into_iter().zip(&mut socket_handles) {
-        *h = Some(server::SocketHandleType::Tcp(socket_set.add(socket)));
+    for socket in sockets.tcp {
+        socket_handles[socket_idx] = Some(server::SocketHandleType::Tcp(socket_set.add(socket)));
+        socket_idx += 1;
     }
     let socket_handles = socket_handles.map(|h| h.unwrap());
 

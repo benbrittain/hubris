@@ -1,0 +1,42 @@
+[package]
+name = "task-mdns"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rand = { version = "*", default-features = false }
+drv-rng-api = { path = "../../drv/rng-api" }
+userlib = {path = "../../sys/userlib", features = ["panic-messages"]}
+cortex-m = {version = "0.7", features = ["inline-asm"]}
+cortex-m-semihosting = {version = "*", optional = true}
+nrf52840-pac = "*"
+log = { version = "^0.4.5", optional=true, default-features = false, features = [] }
+idol-runtime = {git = "https://github.com/oxidecomputer/idolatry.git"}
+num-traits = {version = "0.2", default-features = false}
+serde = {version = "1", default-features = false, features = ["derive"]}
+ssmarshal = {version = "1", default-features = false}
+zerocopy = "0.6"
+task-mdns-api = {path = "./api" }
+task-aether-api = {path = "../aether/api"}
+hubris-num-tasks = {path = "../../sys/num-tasks", features = ["task-enum"]}
+
+
+[build-dependencies]
+idol = {git = "https://github.com/oxidecomputer/idolatry.git"}
+build-util = {path = "../../build/util/"}
+serde = "*"
+quote = "*"
+proc-macro2 = "1"
+syn = "*"
+
+[features]
+itm = [ "userlib/log-itm" ]
+semihosting = [ "userlib/log-semihosting", "cortex-m-semihosting" ]
+log-null = ["userlib/log-null"]
+
+# This section is here to discourage RLS/rust-analyzer from doing test builds,
+# since test builds don't work for cross compilation.
+[[bin]]
+name = "task-mdns"
+test = false
+bench = false

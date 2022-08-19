@@ -1,0 +1,17 @@
+Interface(
+    name: "Mdns",
+    ops: {
+        "resolve": (
+            encoding: Ssmarshal,
+            doc: "Resolve a hostname into an IpAddress",
+            args: {
+                "socket": "HostName",
+            },
+            leases: { },
+            reply: Result(
+                ok: "Ipv6Address",
+                err: CLike("MdnsError"),
+            ),
+        ),
+    },
+)

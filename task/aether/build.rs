@@ -128,6 +128,9 @@ fn generate_port_table(
     let consts = config.sockets.values().filter_map(|socket| {
         if socket.kind == "udp" {
             let port = socket.port;
+            if port.is_none() {
+                panic!("Must specify a port when using udp");
+            }
             Some(quote::quote! { #port })
         } else {
             if socket.port.is_some() {

@@ -58,17 +58,17 @@ task-slots = ["gpio"]
 uses = ["uarte0"]
 interrupts = {"uarte0.irq" = 1}
 
-# [tasks.aether]
-# name = "task-aether"
-# priority = 2
-# max-sizes = {flash = 131072, ram = 32768 }
-# stacksize = 16384
-# start = true
-# # features = ["itm", "log-smoltcp"]
-# features = ["itm"]
-# uses = ["radio", "ficr", "rng", "clock"]
-# task-slots = ["rng_driver"]
-# interrupts = { "radio.irq" = 1 }
+[tasks.aether]
+name = "task-aether"
+priority = 2
+max-sizes = {flash = 131072, ram = 32768 }
+stacksize = 16384
+start = true
+# features = ["itm", "log-smoltcp"]
+features = ["itm"]
+uses = ["radio", "ficr", "rng", "clock"]
+task-slots = ["rng_driver"]
+interrupts = { "radio.irq" = 1 }
 
 
 # [tasks.blinky]
@@ -78,58 +78,74 @@ interrupts = {"uarte0.irq" = 1}
 # start = true
 # task-slots = ["gpio"]
 
-[tasks.air_quality]
-name = "task-air-quality"
-priority = 3
-max-sizes = {flash = 32768, ram = 4096}
-start = true
-features = ["itm", "userlib/log-itm"]
-task-slots = ["i2c_driver"]
-stacksize = 1024
-
-
-[tasks.i2c_driver]
-name = "drv-nrf52-i2c"
-priority = 4
-max-sizes = {flash = 16384, ram = 8192 }
-features = ["userlib/log-itm"]
-uses = ["twim0"]
-start = true
-interrupts = {"twim0.irq" = 1}
-task-slots = ["gpio"]
-
-[config]
-[[config.i2c.controllers]]
-controller = 1
-
-[config.i2c.controllers.ports.A]
-name = "ondevice"
-
-[[config.i2c.controllers.ports.A.pins]]
-pins = [ 8, 9 ]
-af = 4
-
-[[config.i2c.devices]]
-controller = 1
-address = 0x76
-device = "bme68x"
-description = "Bosch air quality sensor"
-
-# [tasks.mqtt]
-# name = "task-mqtt"
+# [tasks.air_quality]
+# name = "task-air-quality"
 # priority = 3
-# max-sizes = {flash = 65536, ram = 32768 }
+# max-sizes = {flash = 32768, ram = 4096}
 # start = true
-# features = ["userlib/log-itm", "userlib/panic-messages"]
-# task-slots = ["aether", "uart"]
-# stacksize = 16384
-
-# [config.aether]
-# pan_id = 0x1eaf
+# features = ["itm", "userlib/log-itm"]
+# task-slots = ["i2c_driver"]
+# stacksize = 1024
 # 
-# [config.aether.sockets.mqtt]
-# kind = "tcp"
-# owner = {name = "mqtt", notification = 1}
-# tx = { packets = 16, bytes = 1024 }
-# rx = { packets = 16, bytes = 1024 }
+# 
+# [tasks.i2c_driver]
+# name = "drv-nrf52-i2c"
+# priority = 4
+# max-sizes = {flash = 16384, ram = 8192 }
+# features = ["userlib/log-itm"]
+# uses = ["twim0"]
+# start = true
+# interrupts = {"twim0.irq" = 1}
+# task-slots = ["gpio"]
+# 
+# [config]
+# [[config.i2c.controllers]]
+# controller = 1
+# 
+# [config.i2c.controllers.ports.A]
+# name = "ondevice"
+# 
+# [[config.i2c.controllers.ports.A.pins]]
+# pins = [ 8, 9 ]
+# af = 4
+# 
+# [[config.i2c.devices]]
+# controller = 1
+# address = 0x76
+# device = "bme68x"
+# description = "Bosch air quality sensor"
+
+[tasks.mqtt]
+name = "task-mqtt"
+priority = 3
+max-sizes = {flash = 65536, ram = 32768 }
+start = true
+features = ["userlib/log-itm", "userlib/panic-messages"]
+task-slots = ["aether", "uart", "mdns"]
+stacksize = 16384
+
+[tasks.mdns]
+name = "task-mdns"
+priority = 3
+max-sizes = {flash = 65536, ram = 32768 }
+start = true
+features = ["userlib/log-itm", "userlib/panic-messages"]
+task-slots = ["aether", "uart", "mdns"]
+stacksize = 16384
+
+[config.aether]
+pan_id = 0x1eaf
+
+[config.aether.sockets.mqtt]
+kind = "tcp"
+owner = {name = "mqtt", notification = 1}
+tx = { packets = 16, bytes = 1024 }
+rx = { packets = 16, bytes = 1024 }
+
+[config.aether.sockets.mdns]
+kind = "udp"
+port = 5353
+owner = {name = "mdns", notification = 1}
+tx = { packets = 8, bytes = 1024 }
+rx = { packets = 8, bytes = 1024 }
 
