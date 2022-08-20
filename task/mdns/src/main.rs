@@ -18,7 +18,7 @@ use task_aether_api::*;
 fn main() -> ! {
     let aether = Aether::from(AETHER.get_task_id());
 
-    let mut server = server::MdnsServer::new();
+    let mut server = server::MdnsServer::new(aether, "aether.local");
     let mut msgbuf = [0u8; server::INCOMING_SIZE];
 
     const SOCKET: SocketName = SocketName::mdns;

@@ -2,9 +2,9 @@
 
 use derive_idol_err::IdolError;
 use serde::{Deserialize, Serialize};
+pub use task_aether_api::Ipv6Address;
 use userlib::*;
 use zerocopy::{AsBytes, FromBytes};
-pub use task_aether_api::Ipv6Address;
 
 #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, IdolError)]
 #[repr(u32)]
@@ -15,11 +15,33 @@ pub enum MdnsError {
 
 /// NOTE this should be 255, but derives aren't automatically
 /// done for that, so punt till a problem.
-pub const MAX_HOSTNAME_LEN: usize = 16;
+pub const MAX_HOSTNAME_LEN: usize = 32;
 
 #[derive(Hash, Eq, Copy, Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[repr(C)]
+#[repr(transparent)]
 pub struct HostName([u8; MAX_HOSTNAME_LEN]);
+
+impl HostName {
+    pub fn from_buf<F>(func: F) -> Self
+    where
+        F: Fn(&mut [u8]) -> usize,
+    {
+        let mut hostname = HostName::default();
+        func(&mut hostname.0[..]);
+        hostname
+    }
+}
+
+impl PartialEq<str> for HostName {
+  fn eq(&self, other: &str) -> bool {
+      for (a, b) in other.bytes().zip(self.0[..other.len()].iter()) {
+          if a != *b {
+              return false;
+          }
+      }
+      true
+  }
+}
 
 impl From<&str> for HostName {
     fn from(hostname: &str) -> Self {
