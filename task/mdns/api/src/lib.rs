@@ -9,14 +9,16 @@ pub use task_aether_api::Ipv6Address;
 #[derive(Copy, Clone, Debug, PartialEq, FromPrimitive, IdolError)]
 #[repr(u32)]
 pub enum MdnsError {
-    Unknown = 1,
+    /// Failed to resolve host name.
+    HostNotFound = 1,
 }
 
 /// NOTE this should be 255, but derives aren't automatically
 /// done for that, so punt till a problem.
-pub const MAX_HOSTNAME_LEN: usize = 32;
+pub const MAX_HOSTNAME_LEN: usize = 16;
 
-#[derive(Copy, Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Hash, Eq, Copy, Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[repr(C)]
 pub struct HostName([u8; MAX_HOSTNAME_LEN]);
 
 impl From<&str> for HostName {

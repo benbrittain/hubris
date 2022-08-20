@@ -12,6 +12,7 @@ num-traits = {version = "0.2", default-features = false}
 zerocopy = "0.6"
 hubris-num-tasks = {path = "../../../sys/num-tasks", features = ["task-enum"]}
 task-aether-api = {path = "../../aether/api/" }
+heapless = "0.8"
 
 [build-dependencies]
 idol = {git = "https://github.com/oxidecomputer/idolatry.git"}

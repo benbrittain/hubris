@@ -42,7 +42,7 @@ impl log::Log for SysLogger {
 #[export_name = "main"]
 fn main() -> ! {
     log::set_logger(&SYS_LOGGER).unwrap();
-    log::set_max_level(log::LevelFilter::Trace);
+    log::set_max_level(log::LevelFilter::Info);
 
     let uart = Uart::from(UART.get_task_id());
     let aether = Aether::from(AETHER.get_task_id());
