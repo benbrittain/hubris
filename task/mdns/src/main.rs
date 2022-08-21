@@ -18,19 +18,24 @@ use task_aether_api::*;
 fn main() -> ! {
     let aether = Aether::from(AETHER.get_task_id());
 
-    let mut server = server::MdnsServer::new(aether, "aether.local");
+    let mut server = server::MdnsServer::new("aether.local");
     let mut msgbuf = [0u8; server::INCOMING_SIZE];
 
     const SOCKET: SocketName = SocketName::mdns;
 
     loop {
+        let mut tx_data_buf = [0u8; 64];
         let mut rx_data_buf = [0u8; 64];
         match aether.recv_udp_packet(SOCKET, &mut rx_data_buf) {
             Ok(metadata) => {
                 if let Ok(msg) = dnsparse::Message::parse(
                     &mut rx_data_buf[..metadata.payload_len as usize],
                 ) {
-                    server.process_msg(msg, metadata);
+                    if let Some(len) = server.process_msg(msg, &mut tx_data_buf, metadata) {
+                        sys_log!("NEDD {:x?}", &tx_data_buf[..len]);
+                        //aether.
+
+                    }
                 }
             }
             Err(AetherError::QueueEmpty) => {

@@ -130,9 +130,11 @@ pub enum AetherError {
     WrongSocketType,
     /// The remote side of the TCP connection was closed.
     RemoteTcpClose,
+    /// Error when attempting to send the packet.
+    SendError,
     /// Aether only supports working with IPv6.
     NotIpv6,
-    /// Unknown Error from smoltcp socket.
+    /// Unknown Error from smoltcp.
     Unknown,
 }
 

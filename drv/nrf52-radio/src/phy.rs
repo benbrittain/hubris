@@ -24,6 +24,7 @@ impl<'a> Device<'a> for Radio<'_> {
         if self.can_send() {
             return Some(RadioTxToken(self));
         }
+        panic!("oh no");
         None
     }
 

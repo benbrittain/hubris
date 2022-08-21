@@ -3,6 +3,7 @@ use core::iter::FromIterator;
 use core::mem;
 use core::mem::MaybeUninit;
 use core::ops::{Index, IndexMut};
+use ::ringbuf::{ringbuf as r, ringbuf_entry};
 
 /// The maximum size of a 802.15.4 packet payload.
 const PACKET_SIZE: usize = 255;
@@ -14,6 +15,18 @@ const PHY_LEN_LEN: usize = 1;
 const CRC_LEN: usize = 1;
 
 type PacketBuf = [u8; PACKET_SIZE];
+
+r!(Trace, 32, Trace::None);
+
+#[derive(Copy, Clone, PartialEq)]
+enum Trace {
+    None,
+    TxWrite(usize, usize),
+    TxSent(usize, usize),
+    RxRead(usize, usize),
+    RxGot(usize, usize),
+    FullChk(usize),
+}
 
 #[inline]
 const fn mask(cap: usize, index: usize) -> usize {
@@ -65,6 +78,7 @@ impl<const CAP: usize> RingBufferRx<CAP> {
 
     /// Move the write pointer IFF we got a packet
     pub fn got_packet(&self) {
+        ringbuf_entry!(Trace::RxGot(mask(CAP, self.write_idx.get()), self.len()));
         self.write_idx.set(self.write_idx.get() + 1);
     }
 
@@ -73,6 +87,7 @@ impl<const CAP: usize> RingBufferRx<CAP> {
             None
         } else {
             let index = mask(CAP, self.read_idx.get());
+            ringbuf_entry!(Trace::RxRead(index, self.len()));
 
             // TODO safety description
             let mut slice =
@@ -136,6 +151,7 @@ impl<const CAP: usize> RingBufferTx<CAP> {
     }
 
     pub fn is_full(&self) -> bool {
+        ringbuf_entry!(Trace::FullChk(self.len()));
 //        userlib::sys_log!("is full len {}", self.len());
         self.len() == CAP
     }
@@ -151,6 +167,7 @@ impl<const CAP: usize> RingBufferTx<CAP> {
     /// Move the write pointer IFF we got a packet
     pub fn sent_packet(&self) {
 //        userlib::sys_log!("~~~~~~~~~~~~~~ SENT PACKET {} ~~~~~~~~~~~~~~", self.read_idx.get());
+        ringbuf_entry!(Trace::TxSent(mask(CAP, self.read_idx.get()), self.len()));
         self.read_idx.set(self.read_idx.get() + 1);
     }
 
@@ -160,6 +177,7 @@ impl<const CAP: usize> RingBufferTx<CAP> {
         len: usize,
     ) -> Option<R> {
         let index = mask(CAP, self.write_idx.get());
+        ringbuf_entry!(Trace::TxWrite(index, self.len()));
         let mut packet_buf =
             unsafe { (&mut (*self.buf.get())[index]) };
         cortex_m::asm::dsb();

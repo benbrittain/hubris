@@ -23,7 +23,7 @@ use tcp_interop::NetworkLayer;
 
 task_slot!(AETHER, aether);
 task_slot!(UART, uart);
-task_slot!(MDNS, mdns);
+//task_slot!(MDNS, mdns);
 
 static SYS_LOGGER: SysLogger = SysLogger;
 pub struct SysLogger;
@@ -46,11 +46,11 @@ fn main() -> ! {
 
     let uart = Uart::from(UART.get_task_id());
     let aether = Aether::from(AETHER.get_task_id());
-    let mdns = Mdns::from(MDNS.get_task_id());
-    let addr = mdns.resolve("portal.local".into()).unwrap();
+//    let mdns = Mdns::from(MDNS.get_task_id());
+//    let addr = mdns.resolve("portal.local".into()).unwrap();
     let mut mqtt: Minimq<_, _, 256, 16> = Minimq::new(
-        addr.0.into(),
-//        "fd00:1eaf::1".parse().unwrap(),
+//        addr.0.into(),
+        "fd00:1eaf::1".parse().unwrap(),
         "mqtt-aethereo",
         NetworkLayer {
             aether,
@@ -105,6 +105,7 @@ fn main() -> ! {
                 //&[Property::UserProperty("version", "0")],
                 &[],
             ).unwrap();
+            sys_log!("published");
         }
 
         if let Err(MqError::Network(AetherError::QueueEmpty)) =

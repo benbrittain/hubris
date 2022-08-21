@@ -12,6 +12,7 @@ cortex-m-semihosting = {version = "*", optional = true}
 log = "*"
 task-aether-api = {path = "../../task/aether/api"}
 array-init="*"
+ringbuf = {path = "../../lib/ringbuf" }
 
 [features]
 itm = [ "userlib/log-itm" ]

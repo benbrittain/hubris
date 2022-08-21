@@ -19,7 +19,7 @@ use task_aether_api::*;
 mod phy;
 mod ringbuf;
 
-use ringbuf::{RingBufferRx, RingBufferTx};
+use crate::ringbuf::{RingBufferRx, RingBufferTx};
 
 /// Mask of known bytes in ACK packet
 pub const MHMU_MASK: u32 = 0xff000700;
@@ -73,8 +73,8 @@ enum RadioState {
 /// Interface to the radio peripheral.
 pub struct Radio<'a> {
     radio: &'a device::radio::RegisterBlock,
-    transmit_buffer: RingBufferTx<8>,
-    receive_buffer: RingBufferRx<4>,
+    transmit_buffer: RingBufferTx<16>,
+    receive_buffer: RingBufferRx<16>,
     mode: UnsafeCell<DriverState>,
     done_transmit_dbg: Cell<bool>,
 }
@@ -85,8 +85,8 @@ impl Radio<'_> {
 
         Radio {
             radio,
-            transmit_buffer: RingBufferTx::<8>::new(),
-            receive_buffer: RingBufferRx::<4>::new(),
+            transmit_buffer: RingBufferTx::<16>::new(),
+            receive_buffer: RingBufferRx::<16>::new(),
             mode: UnsafeCell::new(DriverState::Sleep),
             done_transmit_dbg: Cell::new(false),
         }
@@ -137,13 +137,13 @@ impl Radio<'_> {
 
     /// Point the EasyDMA engine at a valid memory region
     /// for receptionand transmission of packets.
-    fn configure_packet_buffer(&self, buf: &RingBufferTx<8>) {
+    fn configure_packet_buffer(&self, buf: &RingBufferTx<16>) {
         buf.set_as_buffer(&self);
     }
 
     /// Point the EasyDMA engine at a valid memory region
     /// for receptionand transmission of packets.
-    fn configure_packet_buffer_recv(&self, buf: &RingBufferRx<4>) {
+    fn configure_packet_buffer_recv(&self, buf: &RingBufferRx<16>) {
         buf.set_as_buffer(&self);
     }
 

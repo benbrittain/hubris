@@ -51,7 +51,7 @@ uses = ["gpio0"]
 
 [tasks.uart]
 name = "drv-nrf52-uart"
-priority = 2
+priority = 3
 max-sizes = {flash = 8192, ram = 4096}
 start = true
 task-slots = ["gpio"]
@@ -61,11 +61,11 @@ interrupts = {"uarte0.irq" = 1}
 [tasks.aether]
 name = "task-aether"
 priority = 2
-max-sizes = {flash = 131072, ram = 32768 }
-stacksize = 16384
+max-sizes = {flash = 131072, ram = 65536 }
+stacksize = 32768
 start = true
-# features = ["itm", "log-smoltcp"]
-features = ["itm"]
+features = ["itm", "log-smoltcp"]
+# features = ["itm"]
 uses = ["radio", "ficr", "rng", "clock"]
 task-slots = ["rng_driver"]
 interrupts = { "radio.irq" = 1 }
@@ -121,17 +121,18 @@ priority = 4
 max-sizes = {flash = 65536, ram = 32768 }
 start = true
 features = ["userlib/log-itm", "userlib/panic-messages"]
-task-slots = ["aether", "uart", "mdns"]
+#task-slots = ["aether", "uart", "mdns"]
+task-slots = ["aether", "uart"]
 stacksize = 16384
 
-[tasks.mdns]
-name = "task-mdns"
-priority = 3
-max-sizes = {flash = 65536, ram = 32768 }
-start = true
-features = ["userlib/log-itm", "userlib/panic-messages"]
-task-slots = ["aether", "uart", "mdns"]
-stacksize = 16384
+# [tasks.mdns]
+# name = "task-mdns"
+# priority = 3
+# max-sizes = {flash = 65536, ram = 32768 }
+# start = true
+# features = ["userlib/log-itm", "userlib/panic-messages"]
+# task-slots = ["aether", "uart", "mdns"]
+# stacksize = 16384
 
 [config.aether]
 pan_id = 0x1eaf
@@ -139,13 +140,13 @@ pan_id = 0x1eaf
 [config.aether.sockets.mqtt]
 kind = "tcp"
 owner = {name = "mqtt", notification = 1}
-tx = { packets = 16, bytes = 1024 }
-rx = { packets = 16, bytes = 1024 }
+tx = { packets = 32, bytes = 1024 }
+rx = { packets = 32, bytes = 1024 }
 
-[config.aether.sockets.mdns]
-kind = "udp"
-port = 5353
-owner = {name = "mdns", notification = 1}
-tx = { packets = 8, bytes = 1024 }
-rx = { packets = 8, bytes = 1024 }
-
+# [config.aether.sockets.mdns]
+# kind = "udp"
+# port = 5353
+# owner = {name = "mdns", notification = 1}
+# tx = { packets = 8, bytes = 1024 }
+# rx = { packets = 8, bytes = 1024 }
+# 

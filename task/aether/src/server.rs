@@ -1,8 +1,8 @@
+use crate::RADIO_IRQ;
 use idol_runtime::{ClientError, Leased, NotificationHandler, RequestError};
+use rand::Rng;
 use smoltcp::iface::{Interface, SocketHandle, SocketSet};
 use smoltcp::socket::{tcp, udp};
-use crate::RADIO_IRQ;
-use rand::Rng;
 use task_aether_api::{
     AetherError, Ieee802154Address, Ipv6Address, SocketName, TcpMetadata,
     UdpMetadata,
@@ -235,19 +235,19 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
         let socket = self.get_tcp_socket_mut(socket as usize)?;
 
         match socket.send(|buf| {
-            if buf.len() < payload.len() {
-                panic!("buffer stuff to do ben!");
+            let len = if buf.len() < payload.len() {
+                buf.len()
+            } else {
+                payload.len()
+            };
+            match payload.read_range(0..payload.len(), buf) {
+                Ok(_) => (len, Ok(len as u32)),
+                Err(e) => (0, Err(e)),
             }
-            payload.read_range(0..payload.len(), buf).unwrap();
-            // TODO there needs to be a way of handling if this write fails
-
-            (payload.len(), payload.len() as u32)
         }) {
-            Ok(len) => Ok(len),
-            e => {
-                sys_log!("couldn't send packet {:?}", e);
-                panic!("couldn't send packet {:?}", e);
-            },
+            Ok(Ok(len)) => Ok(len),
+            Ok(Err(e)) => Err(RequestError::Fail(ClientError::WentAway)),
+            Err(e) => Err(AetherError::SendError.into()),
         }
     }
 
