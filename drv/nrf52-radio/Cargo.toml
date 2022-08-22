@@ -1,0 +1,25 @@
+[package]
+name = "nrf52-radio"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+userlib = { path = "../../sys/userlib", default-features = false}
+nrf52840-pac = "*"
+cortex-m = "*"
+cortex-m-semihosting = {version = "*", optional = true}
+log = "*"
+array-init="*"
+ringbuf = {path = "../../lib/ringbuf" }
+
+[features]
+itm = [ "userlib/log-itm" ]
+semihosting = [ "userlib/log-semihosting", "cortex-m-semihosting"]
+log-null = ["userlib/log-null"]
+
+[dependencies.smoltcp]
+version = "*"
+default-features = false
+features = [ "proto-sixlowpan", "medium-ieee802154" ]
+
