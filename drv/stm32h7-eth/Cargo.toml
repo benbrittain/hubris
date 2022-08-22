@@ -20,7 +20,7 @@ stm32h7 = {version = "0.14", default-features = false}
 
 [dependencies.smoltcp]
 optional = true
-version = "0.8.0"
+version = "*"
 default-features = false
 
 # This section is here to discourage RLS/rust-analyzer from doing test builds,
