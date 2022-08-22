@@ -57,6 +57,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrayvec"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
+
+[[package]]
 name = "atomic-polyfill"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1115,6 +1121,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "drv-nrf52-rng"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "drv-rng-api",
+ "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "nrf52840-pac",
+ "num-traits",
+ "rand_chacha",
+ "rand_core",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "drv-nrf52-uart"
 version = "0.1.0"
 dependencies = [
@@ -1187,6 +1209,15 @@ dependencies = [
  "rand_core",
  "userlib",
  "zerocopy",
+]
+
+[[package]]
+name = "drv-sensirion-sps32"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "drv-nrf52-uart-api",
+ "userlib",
 ]
 
 [[package]]
@@ -3341,7 +3372,7 @@ name = "task-blinky"
 version = "0.1.0"
 dependencies = [
  "cortex-m",
- "cortex-m-semihosting 0.3.7",
+ "cortex-m-semihosting 0.5.0",
  "drv-nrf52-gpio-api",
  "userlib",
 ]
