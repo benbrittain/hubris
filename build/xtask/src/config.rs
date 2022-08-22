@@ -7,7 +7,7 @@ use std::hash::Hasher;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Context, bail, Result};
 use indexmap::IndexMap;
 use serde::Deserialize;
 
