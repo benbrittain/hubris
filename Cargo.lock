@@ -1007,6 +1007,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "drv-nrf52-gpio-api"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "cfg-if",
+ "drv-nrf52-gpio-common",
+ "idol",
+ "num-traits",
+ "unwrap-lite",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-nrf52-gpio-common"
+version = "0.1.0"
+dependencies = [
+ "num-traits",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-nrf52840-gpio"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "drv-nrf52-gpio-api",
+ "drv-nrf52-gpio-common",
+ "idol",
+ "idol-runtime",
+ "nrf52840-pac",
+ "num-traits",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "drv-onewire"
 version = "0.1.0"
 dependencies = [
