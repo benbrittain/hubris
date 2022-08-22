@@ -64,8 +64,8 @@ priority = 2
 max-sizes = {flash = 131072, ram = 65536 }
 stacksize = 32768
 start = true
-# features = ["itm", "log-smoltcp"]
-features = ["itm"]
+features = ["itm", "log-smoltcp"]
+# features = ["itm"]
 uses = ["radio", "ficr", "rng", "clock"]
 task-slots = ["rng_driver"]
 interrupts = { "radio.irq" = 1 }
