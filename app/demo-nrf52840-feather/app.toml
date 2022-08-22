@@ -63,4 +63,18 @@ uses = ["rng"]
 start = true
 stacksize = 2200
 
+[tasks.aether]
+name = "task-aether"
+priority = 2
+max-sizes = {flash = 131072, ram = 65536 }
+stacksize = 32768
+start = true
+features = ["itm", "log-smoltcp"]
+uses = ["radio", "ficr", "rng", "clock"]
+task-slots = ["rng_driver"]
+interrupts = { "radio.irq" = 1 }
+
 [config]
+
+[config.aether]
+pan_id = 0x1eaf
