@@ -118,6 +118,25 @@ Interface(
                 err: CLike("AetherError"),
             ),
         ),
+        "start_resolve_query": (
+            doc: "Start a DNS request for an IP from URL",
+            args: { },
+            leases: {
+                "url": (type: "[u8]", read: true),
+            },
+            reply: Result(
+                ok: "()",
+                err: CLike("AetherError"),
+            ),
+         ),
+        "resolve_query": (
+            doc: "Resolve a DNS request for an IP from URL",
+            args: {},
+            reply: Result(
+                ok: "Ipv6Address",
+                err: CLike("AetherError"),
+            ),
+         ),
         "get_addr": (
             doc: "Get Device local IP address",
             args: { },

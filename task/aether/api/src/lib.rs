@@ -2,8 +2,27 @@
 
 use derive_idol_err::IdolError;
 use serde::{Deserialize, Serialize};
+use smoltcp::socket::dns::QueryHandle;
 use userlib::*;
 use zerocopy::{AsBytes, FromBytes};
+
+pub type DnsQueryHandle = usize;
+
+impl Aether {
+    pub fn resolve(&self, url: &str) -> Result<Ipv6Address, AetherError> {
+        self.start_resolve_query(url.as_bytes())?;
+        loop {
+            match self.resolve_query() {
+                Ok(ip) => return Ok(ip),
+                Err(AetherError::QueueEmpty) => {
+                    // Our incoming queue is empty. Wait for more packets.
+                    sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct UdpMetadata {
@@ -134,6 +153,12 @@ pub enum AetherError {
     SendError,
     /// Aether only supports working with IPv6.
     NotIpv6,
+    /// Dns resolution failed for some reason.
+    DnsFailure,
+    /// No DNS query has been requested to be resolved.
+    NoPendingDnsQuery,
+    /// We can only handle a single DNS query at a time.
+    DnsQueryAlreadyInflight,
     /// Unknown Error from smoltcp.
     Unknown,
 }

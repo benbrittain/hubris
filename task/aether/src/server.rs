@@ -2,10 +2,12 @@ use crate::RADIO_IRQ;
 use idol_runtime::{ClientError, Leased, NotificationHandler, RequestError};
 use rand::Rng;
 use smoltcp::iface::{Interface, SocketHandle, SocketSet};
-use smoltcp::socket::{tcp, udp};
+use smoltcp::socket::dns::QueryHandle;
+use smoltcp::socket::{dns, tcp, udp};
+use smoltcp::wire::DnsQueryType;
 use task_aether_api::{
-    AetherError, Ieee802154Address, Ipv6Address, SocketName, TcpMetadata,
-    UdpMetadata,
+    AetherError, DnsQueryHandle, Ieee802154Address, Ipv6Address, SocketName,
+    TcpMetadata, UdpMetadata,
 };
 
 use userlib::*;
@@ -17,19 +19,21 @@ pub const INCOMING_SIZE: usize = idl::INCOMING_SIZE;
 pub enum SocketHandleType {
     Udp(SocketHandle),
     Tcp(SocketHandle),
+    Dns(SocketHandle),
 }
 
 pub struct AetherServer<'a> {
-    socket_handles: [SocketHandleType; crate::generated::SOCKET_COUNT],
+    socket_handles: [SocketHandleType; crate::generated::SOCKET_COUNT + 1],
     socket_set: SocketSet<'a>,
     iface: Interface<'a>,
     device: nrf52_radio::Radio<'a>,
     rng: drv_rng_api::Rng,
+    dns_query: Option<QueryHandle>,
 }
 
 impl<'a> AetherServer<'a> {
     pub fn new(
-        socket_handles: [SocketHandleType; crate::generated::SOCKET_COUNT],
+        socket_handles: [SocketHandleType; crate::generated::SOCKET_COUNT + 1],
         socket_set: SocketSet<'a>,
         iface: Interface<'a>,
         device: nrf52_radio::Radio<'a>,
@@ -41,6 +45,7 @@ impl<'a> AetherServer<'a> {
             iface,
             device,
             rng,
+            dns_query: None,
         }
     }
 
@@ -217,7 +222,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
         }
 
         let socket = self.get_tcp_socket_mut(socket as usize)?;
-        Ok(socket.may_send())
+        Ok(socket.may_send() && socket.may_recv())
     }
 
     fn send_tcp_data(
@@ -331,6 +336,78 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
     ) -> Result<(), RequestError<AetherError>> {
         unimplemented!();
     }
+
+    fn resolve_query(
+        &mut self,
+        msg: &userlib::RecvMessage,
+    ) -> Result<Ipv6Address, idol_runtime::RequestError<AetherError>> {
+        let dns_handle = match self.dns_query {
+            Some(handle) => handle,
+            None => return Err(AetherError::NoPendingDnsQuery.into())
+        };
+
+        // We insert the DNS as the very last one
+        let dns_idx = self.socket_handles.len() - 1;
+        let handle = self
+            .socket_handles
+            .get(dns_idx)
+            .cloned()
+            .ok_or(RequestError::Fail(ClientError::BadMessageContents))?;
+
+        if let SocketHandleType::Dns(handle) = handle {
+            let dns = self.socket_set.get_mut::<dns::Socket>(handle);
+            match dns.get_query_result(dns_handle) {
+                Ok(names) => {
+                    let name = names.get(0).unwrap();
+                    match name {
+                        smoltcp::wire::IpAddress::Ipv6(ipv6) => {
+                            return Ok(Ipv6Address::from(*ipv6))
+                        }
+                        _ => panic!(),
+                    }
+                }
+                Err(dns::GetQueryResultError::Failed) => {
+                    return Err(AetherError::DnsFailure.into())
+                }
+                Err(dns::GetQueryResultError::Pending) => {
+                    return Err(AetherError::QueueEmpty.into())
+                }
+            }
+        }
+        panic!("Internal condiditon of DNS being last handle violated")
+    }
+
+    fn start_resolve_query(
+        &mut self,
+        msg: &userlib::RecvMessage,
+        url: idol_runtime::Leased<idol_runtime::R, [u8]>,
+    ) -> Result<(), idol_runtime::RequestError<AetherError>> {
+        if self.dns_query.is_some() {
+            return Err(AetherError::DnsQueryAlreadyInflight.into());
+        }
+        // We insert the DNS as the very last one
+        let dns_idx = self.socket_handles.len() - 1;
+        let handle = self
+            .socket_handles
+            .get(dns_idx)
+            .cloned()
+            .ok_or(RequestError::Fail(ClientError::BadMessageContents))?;
+
+        if let SocketHandleType::Dns(handle) = handle {
+            let dns = self.socket_set.get_mut::<dns::Socket>(handle);
+            let handle = dns
+                .start_query(
+                    self.iface.context(),
+                    "portal.local",
+                    DnsQueryType::Aaaa,
+                )
+                .map_err(|_| RequestError::went_away())?;
+            self.dns_query = Some(handle);
+            return Ok(());
+            // and make this totally blocking.
+        }
+        panic!("Internal condiditon of DNS being last handle violated")
+    }
 }
 
 impl NotificationHandler for AetherServer<'_> {
@@ -346,9 +423,8 @@ impl NotificationHandler for AetherServer<'_> {
         }
     }
 }
+
 mod idl {
-    use task_aether_api::{
-        AetherError, Ieee802154Address, SocketName, TcpMetadata, UdpMetadata,
-    };
+    use task_aether_api::*;
     include!(concat!(env!("OUT_DIR"), "/server_stub.rs"));
 }

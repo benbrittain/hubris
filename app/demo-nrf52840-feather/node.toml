@@ -64,19 +64,18 @@ priority = 2
 max-sizes = {flash = 131072, ram = 65536 }
 stacksize = 32768
 start = true
-features = ["itm", "log-smoltcp"]
-# features = ["itm"]
+# features = ["itm", "log-smoltcp"]
+features = ["itm"]
 uses = ["radio", "ficr", "rng", "clock"]
 task-slots = ["rng_driver"]
 interrupts = { "radio.irq" = 1 }
 
-
-# [tasks.blinky]
-# name = "task-blinky"
-# priority = 4
-# max-sizes = {flash = 1024, ram = 1024}
-# start = true
-# task-slots = ["gpio"]
+[tasks.blinky]
+name = "task-blinky"
+priority = 4
+max-sizes = {flash = 1024, ram = 1024}
+start = true
+task-slots = ["gpio"]
 
 # [tasks.air_quality]
 # name = "task-air-quality"
@@ -98,6 +97,7 @@ interrupts = { "radio.irq" = 1 }
 # interrupts = {"twim0.irq" = 1}
 # task-slots = ["gpio"]
 # 
+[config]
 # [config]
 # [[config.i2c.controllers]]
 # controller = 1
@@ -125,28 +125,11 @@ features = ["userlib/log-itm", "userlib/panic-messages"]
 task-slots = ["aether", "uart"]
 stacksize = 16384
 
-# [tasks.mdns]
-# name = "task-mdns"
-# priority = 3
-# max-sizes = {flash = 65536, ram = 32768 }
-# start = true
-# features = ["userlib/log-itm", "userlib/panic-messages"]
-# task-slots = ["aether", "uart", "mdns"]
-# stacksize = 16384
-
 [config.aether]
 pan_id = 0x1eaf
 
 [config.aether.sockets.mqtt]
 kind = "tcp"
 owner = {name = "mqtt", notification = 1}
-tx = { packets = 32, bytes = 1024 }
-rx = { packets = 32, bytes = 1024 }
-
-# [config.aether.sockets.mdns]
-# kind = "udp"
-# port = 5353
-# owner = {name = "mdns", notification = 1}
-# tx = { packets = 8, bytes = 1024 }
-# rx = { packets = 8, bytes = 1024 }
-# 
+tx = { packets = 16, bytes = 1024 }
+rx = { packets = 16, bytes = 1024 }

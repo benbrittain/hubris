@@ -10,7 +10,7 @@ use smoltcp::{
         PacketAssembler, SocketSet, SocketStorage,
     },
     phy::Medium,
-    socket::{tcp, udp},
+    socket::{tcp, udp, dns},
     storage::RingBuffer,
     time::Instant,
     wire::{
@@ -122,21 +122,31 @@ fn main() -> ! {
         .sixlowpan_out_packet_cache(&mut out_packet_buffer[..]);
     let mut iface = builder.finalize(&mut radio);
 
-    let mut socket_storage: [_; generated::SOCKET_COUNT] = Default::default();
+    let mut socket_storage: [_; generated::SOCKET_COUNT + 1] = Default::default();
     let mut socket_set = SocketSet::new(&mut socket_storage[..]);
 
     let sockets = generated::construct_sockets();
-    let mut socket_handles = [None; generated::SOCKET_COUNT];
-
+    let mut socket_handles = [None; generated::SOCKET_COUNT + 1];
     let mut socket_idx = 0;
+
+    // Udp sockets
     for socket in sockets.udp {
         socket_handles[socket_idx] = Some(server::SocketHandleType::Udp(socket_set.add(socket)));
         socket_idx += 1;
     }
+
+    // Tcp sockets
     for socket in sockets.tcp {
         socket_handles[socket_idx] = Some(server::SocketHandleType::Tcp(socket_set.add(socket)));
         socket_idx += 1;
     }
+
+    // Dns socket
+    let mut query_storage: [_; 2] = Default::default();
+    let dns_socket = dns::Socket::new(&[], &mut query_storage[..]);
+    socket_handles[socket_idx] = Some(server::SocketHandleType::Dns(socket_set.add(dns_socket)));
+
+
     let socket_handles = socket_handles.map(|h| h.unwrap());
 
     // Bind sockets to their ports.
@@ -149,6 +159,7 @@ fn main() -> ! {
                 udp_socket.bind((site_local_ipv6_addr, port)).unwrap();
             }
             server::SocketHandleType::Tcp(handle) => {}
+            server::SocketHandleType::Dns(handle) => {}
         }
     }
 

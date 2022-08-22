@@ -97,6 +97,7 @@ fn generate_aether_config(
             use core::sync::atomic::{AtomicBool, Ordering};
             use smoltcp::socket::{tcp, udp};
 
+            /// Number of sockets (excluding DNS)
             pub const SOCKET_COUNT: usize = #socket_count;
         }
     )?;

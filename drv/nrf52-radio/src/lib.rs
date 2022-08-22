@@ -439,6 +439,8 @@ impl Radio<'_> {
                     if self.radio.crcstatus.read().crcstatus().is_crcok() {
                         self.receive_buffer.got_packet();
                     } else {
+                        // we got a bad packet, maybe collect some statistics
+                        // on CRC OK vs BAD?
                     }
                 }
                 RadioState::TxIdle => {
@@ -449,6 +451,14 @@ impl Radio<'_> {
                         self.start_transmit();
                     }
                 }
+                RadioState::Tx => {
+                    // Not quite sure how we get a events_end in this state,
+                    // something spurious perhaps? ignore for now since
+                    // the radio is more acurate about the state then the state
+                    // machine
+                    self.enable_interrupts();
+                    return;
+                },
                 s => {
                     panic!("Don't know how to handle {:?} during event end", s)
                 }

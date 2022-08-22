@@ -34,5 +34,3 @@ path = "sys/abi"
 smoltcp = { path = '../smoltcp/' }
 bme68x-rust = { path = '../bme68x-rust/' }
 postcard = { path = '../postcard/' }
-heapless = { path = '../heapless/' }
-dnsparse = { path = '../dnsparse/' }
