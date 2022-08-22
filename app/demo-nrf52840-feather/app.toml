@@ -6,7 +6,7 @@ stacksize = 896
 
 [kernel]
 name = "demo-nrf52840-feather"
-requires = {flash = 32768, ram = 1888}
+requires = {flash = 32768, ram = 2096}
 features = ["itm"]
 
 [tasks.jefe]
@@ -34,9 +34,16 @@ start = true
 [tasks.gpio]
 name = "drv-nrf52840-gpio"
 priority = 2
-features = ["userlib/log-itm"]
+features = []
 max-sizes = {flash = 4096, ram = 1024}
 start = true
 uses = ["gpio0"]
+
+[tasks.blinky]
+name = "task-blinky"
+priority = 4
+max-sizes = {flash = 1024, ram = 1024}
+start = true
+task-slots = ["gpio"]
 
 [config]
