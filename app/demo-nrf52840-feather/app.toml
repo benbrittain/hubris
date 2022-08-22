@@ -6,7 +6,7 @@ stacksize = 896
 
 [kernel]
 name = "demo-nrf52840-feather"
-requires = {flash = 32768, ram = 2096}
+requires = {flash = 32768, ram = 2304}
 features = ["itm"]
 
 [tasks.jefe]
@@ -45,5 +45,14 @@ priority = 4
 max-sizes = {flash = 1024, ram = 1024}
 start = true
 task-slots = ["gpio"]
+
+[tasks.uart]
+name = "drv-nrf52-uart"
+priority = 3
+max-sizes = {flash = 8192, ram = 4096}
+start = true
+task-slots = ["gpio"]
+uses = ["uarte0"]
+interrupts = {"uarte0.irq" = 1}
 
 [config]
