@@ -6,7 +6,7 @@ stacksize = 896
 
 [kernel]
 name = "demo-nrf52840-feather"
-requires = {flash = 32768, ram = 2928}
+requires = {flash = 32768, ram = 1888}
 features = ["itm"]
 
 [tasks.jefe]
@@ -26,11 +26,17 @@ start = true
 
 [tasks.hiffy]
 name = "task-hiffy"
-features = ["nrf52", "rng"]
 priority = 3
 max-sizes = {flash = 16384, ram = 16384 }
 stacksize = 2048
 start = true
-task-slots = ["rng_driver"]
+
+[tasks.gpio]
+name = "drv-nrf52840-gpio"
+priority = 2
+features = ["userlib/log-itm"]
+max-sizes = {flash = 4096, ram = 1024}
+start = true
+uses = ["gpio0"]
 
 [config]
