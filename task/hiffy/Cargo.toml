@@ -12,6 +12,7 @@ drv-i2c-api = {path = "../../drv/i2c-api"}
 drv-spi-api = {path = "../../drv/spi-api"}
 drv-stm32h7-i2c = {path = "../../drv/stm32h7-i2c", default-features = false, optional = true }
 drv-lpc55-gpio-api = {path = "../../drv/lpc55-gpio-api", optional = true}
+drv-nrf52-gpio-api = {path = "../../drv/nrf52-gpio/api", optional = true}
 drv-gimlet-hf-api = {path = "../../drv/gimlet-hf-api", optional = true}
 drv-stm32xx-sys-api = {path = "../../drv/stm32xx-sys-api", default-features = false, optional = true}
 drv-hash-api = {path = "../../drv/hash-api", optional = true}
@@ -39,6 +40,7 @@ i2c = []
 gpio = []
 spi = []
 stm32h7 = ["drv-stm32xx-sys-api/family-stm32h7", "userlib/panic-messages"]
+nrf52 = ["userlib/panic-messages", "drv-nrf52-gpio-api"]
 lpc55 = ["drv-lpc55-gpio-api", "userlib/panic-messages"]
 stm32g0 = ["drv-stm32xx-sys-api/family-stm32g0"]
 qspi = ["drv-gimlet-hf-api"]
