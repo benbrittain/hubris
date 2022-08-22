@@ -6,7 +6,7 @@ stacksize = 896
 
 [kernel]
 name = "demo-nrf52840-feather"
-requires = {flash = 32768, ram = 2304}
+requires = {flash = 32768, ram = 4096}
 features = ["itm"]
 
 [tasks.jefe]
@@ -54,5 +54,13 @@ start = true
 task-slots = ["gpio"]
 uses = ["uarte0"]
 interrupts = {"uarte0.irq" = 1}
+
+[tasks.rng_driver]
+name = "drv-nrf52-rng"
+priority = 1
+max-sizes = {flash = 16384, ram = 4096}
+uses = ["rng"]
+start = true
+stacksize = 2200
 
 [config]

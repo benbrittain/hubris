@@ -1,0 +1,25 @@
+[package]
+name = "drv-nrf52-rng"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+userlib = {path = "../../sys/userlib", features = ["panic-messages"]}
+zerocopy = "0.6.1"
+nrf52840-pac = { version = "0.11.0", default-features = false }
+num-traits = { version = "0.2.12", default-features = false }
+cfg-if = "1"
+drv-rng-api = { path = "../rng-api" }
+rand_chacha = { version = "0.3", default-features = false }
+rand_core = { version = "0.6" }
+idol-runtime = { git = "https://github.com/oxidecomputer/idolatry.git" }
+
+[build-dependencies]
+idol = { git = "https://github.com/oxidecomputer/idolatry.git" }
+
+# This section is here to discourage RLS/rust-analyzer from doing test builds,
+# since test builds don't work for cross compilation.
+[[bin]]
+name = "drv-nrf52-rng"
+test = false
+bench = false
