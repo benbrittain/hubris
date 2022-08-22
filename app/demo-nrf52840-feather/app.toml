@@ -74,7 +74,23 @@ uses = ["radio", "ficr", "rng", "clock"]
 task-slots = ["rng_driver"]
 interrupts = { "radio.irq" = 1 }
 
+[tasks.mqtt]
+name = "task-mqtt"
+priority = 4
+max-sizes = {flash = 65536, ram = 32768 }
+start = true
+features = ["userlib/log-itm", "userlib/panic-messages"]
+#task-slots = ["aether", "uart", "mdns"]
+task-slots = ["aether", "uart"]
+stacksize = 16384
+
 [config]
 
 [config.aether]
 pan_id = 0x1eaf
+
+[config.aether.sockets.mqtt]
+kind = "tcp"
+owner = {name = "mqtt", notification = 1}
+tx = { packets = 16, bytes = 1024 }
+rx = { packets = 16, bytes = 1024 }
