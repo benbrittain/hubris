@@ -1,0 +1,13 @@
+[[flash]]
+address = 0x0000_0000
+size = 0x0010_0000
+read = true
+execute = true
+
+[[ram]]
+address = 0x2000_0000
+size = 0x0004_0000
+read = true
+write = true
+execute = true
+
