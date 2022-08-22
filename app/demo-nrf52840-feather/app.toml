@@ -1,0 +1,36 @@
+name = "demo-nrf52840-feather"
+target = "thumbv7em-none-eabihf"
+board = "nrf52840-feather"
+chip = "../../chips/nrf52"
+stacksize = 896
+
+[kernel]
+name = "demo-nrf52840-feather"
+requires = {flash = 32768, ram = 2928}
+features = ["itm"]
+
+[tasks.jefe]
+name = "task-jefe"
+priority = 0
+max-sizes = {flash = 8192, ram = 2048}
+start = true
+features = ["itm"]
+stacksize = 1536
+
+[tasks.idle]
+name = "task-idle"
+priority = 6
+max-sizes = {flash = 128, ram = 256}
+stacksize = 256
+start = true
+
+[tasks.hiffy]
+name = "task-hiffy"
+features = ["nrf52", "rng"]
+priority = 3
+max-sizes = {flash = 16384, ram = 16384 }
+stacksize = 2048
+start = true
+task-slots = ["rng_driver"]
+
+[config]
