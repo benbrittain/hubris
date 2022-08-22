@@ -5,54 +5,55 @@
 #![no_std]
 #![no_main]
 
-use task_net_api::*;
+use task_aether_api::*;
 use userlib::*;
 
-task_slot!(NET, net);
+task_slot!(AETHER, aether);
 
 #[export_name = "main"]
 fn main() -> ! {
-    let net = NET.get_task_id();
-    let net = Net::from(net);
+    let aether = AETHER.get_task_id();
+    let aether = Aether::from(aether);
 
     const SOCKET: SocketName = SocketName::echo;
 
+    aether.tcp_listen(SOCKET, 7);
     loop {
         // Tiiiiiny payload buffer
-        let mut rx_data_buf = [0u8; 64];
-        match net.recv_packet(
-            SOCKET,
-            LargePayloadBehavior::Discard,
-            &mut rx_data_buf,
-        ) {
-            Ok(meta) => {
-                // A packet! We want to turn it right around. Deserialize the
-                // packet header; unwrap because we trust the server.
-                UDP_ECHO_COUNT
-                    .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-                // Now we know how many bytes to return.
-                let tx_bytes = &rx_data_buf[..meta.size as usize];
+        let mut rx_data_buf = [0u8; 1280];
+        sys_log!("========================= RECV =========================");
+        match aether.recv_tcp_data(SOCKET, &mut rx_data_buf) {
+            Ok(payload_len) => {
+                //// A packet! We want to turn it right around. Deserialize the
+                //// packet header; unwrap because we trust the server.
+                //UDP_ECHO_COUNT
+                //    .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
 
-                loop {
-                    match net.send_packet(SOCKET, meta, tx_bytes) {
-                        Ok(()) => break,
-                        Err(SendError::QueueFull) => {
-                            // Our outgoing queue is full; wait for space.
-                            sys_recv_closed(&mut [], 1, TaskId::KERNEL)
-                                .unwrap();
-                        }
-                        Err(SendError::NotYours) => panic!(),
-                        Err(SendError::InvalidVLan) => panic!(),
-                        Err(SendError::Other) => panic!(),
-                    }
-                }
+                let s = match core::str::from_utf8(
+                    &rx_data_buf[..payload_len as usize],
+                ) {
+                    Ok(v) => v,
+                    Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+                };
+
+                sys_log!("data: {}", s);
+
+                // Now we know how many bytes to return.
+                let tx_bytes = &rx_data_buf[..payload_len as usize];
+
+                aether.send_tcp_data(SOCKET, tx_bytes).unwrap();
             }
-            Err(RecvError::QueueEmpty) => {
+            Err(AetherError::RemoteTcpClose) => {
+                sys_log!("Connection is Closed!");
+                aether.close_tcp(SOCKET).unwrap();
+                aether.tcp_listen(SOCKET, 7).unwrap();
+                sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
+            }
+            Err(AetherError::QueueEmpty) => {
                 // Our incoming queue is empty. Wait for more packets.
                 sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
             }
-            Err(RecvError::NotYours) => panic!(),
-            Err(RecvError::Other) => panic!(),
+            _ => panic!(),
         }
 
         // Try again.

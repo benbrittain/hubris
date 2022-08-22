@@ -160,6 +160,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "bme68x-rust"
+version = "0.1.3"
+
+[[package]]
 name = "bstringify"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1075,6 +1079,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "drv-nrf52-i2c"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "build-i2c",
+ "build-util",
+ "drv-i2c-api",
+ "drv-nrf52-gpio-api",
+ "nrf52840-pac",
+ "num-traits",
+ "ringbuf",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
 name = "drv-nrf52-rng"
 version = "0.1.0"
 dependencies = [
@@ -1086,6 +1106,45 @@ dependencies = [
  "num-traits",
  "rand_chacha",
  "rand_core",
+ "userlib",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-nrf52-spi"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-semihosting 0.5.0",
+ "drv-nrf52-gpio-common",
+ "nrf52840-pac",
+ "num-traits",
+ "ringbuf",
+ "userlib",
+ "vcell",
+ "zerocopy",
+]
+
+[[package]]
+name = "drv-nrf52-spi-server"
+version = "0.1.0"
+dependencies = [
+ "build-util",
+ "call_rustfmt",
+ "cfg-if",
+ "drv-nrf52-gpio-api",
+ "drv-nrf52-spi",
+ "drv-spi-api",
+ "idol 0.2.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "idol-runtime 0.1.0 (git+https://github.com/oxidecomputer/idolatry.git)",
+ "indexmap",
+ "nrf52840-pac",
+ "num-traits",
+ "proc-macro2",
+ "quote",
+ "ringbuf",
+ "serde",
+ "syn",
  "userlib",
  "zerocopy",
 ]
@@ -2654,20 +2713,7 @@ dependencies = [
  "cobs",
  "const_format",
  "heapless",
- "postcard-derive 0.1.1",
- "serde",
-]
-
-[[package]]
-name = "postcard"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c2b180dc0bade59f03fd005cb967d3f1e5f69b13922dad0cd6e047cb8af2363"
-dependencies = [
- "cobs",
- "const_format",
- "heapless",
- "postcard-derive 0.1.0",
+ "postcard-derive",
  "serde",
 ]
 
@@ -2676,17 +2722,6 @@ name = "postcard-cobs"
 version = "0.1.5-pre"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c68cb38ed13fd7bc9dd5db8f165b7c8d9c1a315104083a2b10f11354c2af97f"
-
-[[package]]
-name = "postcard-derive"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9a87b20c0f64e4a835a7f006bff0bbcefed3bf67828fd4608579e6b51e1ebd0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "postcard-derive"
@@ -3392,6 +3427,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "task-aetherping"
+version = "0.1.0"
+dependencies = [
+ "cortex-m-semihosting 0.5.0",
+ "num-traits",
+ "serde",
+ "smoltcp",
+ "ssmarshal",
+ "task-aether-api",
+ "userlib",
+]
+
+[[package]]
+name = "task-air-quality"
+version = "0.1.0"
+dependencies = [
+ "bme68x-rust",
+ "build-i2c",
+ "build-util",
+ "cortex-m",
+ "drv-i2c-api",
+ "drv-i2c-devices",
+ "userlib",
+]
+
+[[package]]
 name = "task-blinky"
 version = "0.1.0"
 dependencies = [
@@ -3427,6 +3488,7 @@ dependencies = [
  "drv-hash-api",
  "drv-i2c-api",
  "drv-lpc55-gpio-api",
+ "drv-nrf52-gpio-api",
  "drv-rng-api",
  "drv-sp-ctrl-api",
  "drv-spi-api",
@@ -3543,7 +3605,7 @@ dependencies = [
  "log",
  "minimq",
  "num-traits",
- "postcard 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "postcard 1.0.2",
  "serde",
  "ssmarshal",
  "task-aether-api",
@@ -3758,9 +3820,8 @@ dependencies = [
  "num-traits",
  "serde",
  "ssmarshal",
- "task-net-api",
+ "task-aether-api",
  "userlib",
- "zerocopy",
 ]
 
 [[package]]
@@ -3770,7 +3831,7 @@ dependencies = [
  "num-traits",
  "serde",
  "ssmarshal",
- "task-net-api",
+ "task-aether-api",
  "userlib",
 ]
 

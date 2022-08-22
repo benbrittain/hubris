@@ -5,58 +5,56 @@
 #![no_std]
 #![no_main]
 
-use task_net_api::*;
+use task_aether_api::*;
 use userlib::*;
-use zerocopy::AsBytes;
 
-task_slot!(NET, net);
+task_slot!(AETHER, aether);
 
 #[export_name = "main"]
 fn main() -> ! {
-    let net = NET.get_task_id();
-    let net = Net::from(net);
+    let aether = AETHER.get_task_id();
+    let aether = Aether::from(aether);
 
     const SOCKET: SocketName = SocketName::broadcast;
 
-    // If this system is running in VLAN mode, then we broadcast to each
-    // possible VLAN in turn.  Otherwise, broadcast normal packets.
-    #[cfg(feature = "vlan")]
-    let mut vid_iter = VLAN_RANGE.cycle();
-
-    // We broadcast a 14-byte packet of (MAC_ADDRESS, HUBRIS_IMAGE_ID)
-    // repeatedly.  This both allows the network to discover our MAC and IP
-    // address (through normal L2/L3 mechanisms), *and* lets `humility rpc`
-    // detect valid targets.
-    let mut out = [0u8; 14];
-    match net.get_mac_address() {
-        Ok(mac) => out[0..6].copy_from_slice(&mac.0),
-        Err(_) => panic!(),
-    }
-    out[6..].copy_from_slice(kipc::read_image_id().as_bytes());
+    let tx_bytes: [u8; 84] = [0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50, 0x51, 0x52, 0x53]; //, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72]; //, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7b, 0x7c];
+    let meta = UdpMetadata {
+        addr: Ipv6Address([
+                      0xff, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        ]),
+//        // IPv6 multicast address for "all routers"
+//        addr: Ipv6Address(
+//                              [
+//                0xfd,
+//                0x0,
+//                0x1e,
+//                0xaf,
+//                0x0,
+//                0x0,
+//                0x0,
+//                0x0,
+//                0x5a,
+//                0xd3,
+//                0xf,
+//                0xcc,
+//                0xff,
+//                0xfe,
+//                0x73,
+//                0x91,
+//            ]),
+        port: 7,
+        payload_len: tx_bytes.len() as u32,
+    };
 
     loop {
-        let meta = UdpMetadata {
-            // IPv6 multicast address for "all nodes"
-            addr: Address::Ipv6(Ipv6Address([
-                0xff, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-            ])),
-            port: 8,
-            size: out.len() as u32,
-            #[cfg(feature = "vlan")]
-            vid: vid_iter.next().unwrap(),
-        };
-
-        hl::sleep_for(500);
-        match net.send_packet(SOCKET, meta, &out[..]) {
-            Ok(()) => UDP_BROADCAST_COUNT
-                .fetch_add(1, core::sync::atomic::Ordering::Relaxed),
-            Err(_) => UDP_ERROR_COUNT
-                .fetch_add(1, core::sync::atomic::Ordering::Relaxed),
-        };
+        hl::sleep_for(2000);
+        aether.send_packet(SOCKET, meta, &tx_bytes).unwrap();
+        hl::sleep_for(200);
+        let mut rx_data_buf = [0u8; 64];
+        aether.recv_packet(SOCKET, &mut rx_data_buf);
+        UDP_BROADCAST_COUNT.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
     }
 }
 
 static UDP_BROADCAST_COUNT: core::sync::atomic::AtomicU32 =
-    core::sync::atomic::AtomicU32::new(0);
-static UDP_ERROR_COUNT: core::sync::atomic::AtomicU32 =
     core::sync::atomic::AtomicU32::new(0);

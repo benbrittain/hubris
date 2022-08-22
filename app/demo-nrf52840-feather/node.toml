@@ -6,7 +6,7 @@ stacksize = 896
 
 [kernel]
 name = "demo-nrf52840-feather"
-requires = {flash = 32768, ram = 4096}
+requires = {flash = 32768, ram = 2928}
 features = ["itm"]
 
 [tasks.jefe]
@@ -26,25 +26,28 @@ start = true
 
 [tasks.hiffy]
 name = "task-hiffy"
+features = ["nrf52", "rng"]
 priority = 3
 max-sizes = {flash = 16384, ram = 16384 }
-features = ["nrf52"]
 stacksize = 2048
 start = true
+task-slots = ["rng_driver"]
+
+[tasks.rng_driver]
+name = "drv-nrf52-rng"
+priority = 1
+max-sizes = {flash = 16384, ram = 4096}
+uses = ["rng"]
+start = true
+stacksize = 2200
 
 [tasks.gpio]
 name = "drv-nrf52840-gpio"
 priority = 2
+features = ["userlib/log-itm"]
 max-sizes = {flash = 4096, ram = 1024}
 start = true
 uses = ["gpio0"]
-
-[tasks.blinky]
-name = "task-blinky"
-priority = 4
-max-sizes = {flash = 1024, ram = 1024}
-start = true
-task-slots = ["gpio"]
 
 [tasks.uart]
 name = "drv-nrf52-uart"
@@ -55,14 +58,6 @@ task-slots = ["gpio"]
 uses = ["uarte0"]
 interrupts = {"uarte0.irq" = 1}
 
-[tasks.rng_driver]
-name = "drv-nrf52-rng"
-priority = 1
-max-sizes = {flash = 16384, ram = 4096}
-uses = ["rng"]
-start = true
-stacksize = 2200
-
 [tasks.aether]
 name = "task-aether"
 priority = 2
@@ -70,9 +65,55 @@ max-sizes = {flash = 131072, ram = 65536 }
 stacksize = 32768
 start = true
 features = ["itm", "log-smoltcp"]
+# features = ["itm"]
 uses = ["radio", "ficr", "rng", "clock"]
 task-slots = ["rng_driver"]
 interrupts = { "radio.irq" = 1 }
+
+[tasks.blinky]
+name = "task-blinky"
+priority = 4
+max-sizes = {flash = 1024, ram = 1024}
+start = true
+task-slots = ["gpio"]
+
+# [tasks.air_quality]
+# name = "task-air-quality"
+# priority = 3
+# max-sizes = {flash = 32768, ram = 4096}
+# start = true
+# features = ["itm", "userlib/log-itm"]
+# task-slots = ["i2c_driver"]
+# stacksize = 1024
+# 
+# 
+# [tasks.i2c_driver]
+# name = "drv-nrf52-i2c"
+# priority = 4
+# max-sizes = {flash = 16384, ram = 8192 }
+# features = ["userlib/log-itm"]
+# uses = ["twim0"]
+# start = true
+# interrupts = {"twim0.irq" = 1}
+# task-slots = ["gpio"]
+# 
+[config]
+# [config]
+# [[config.i2c.controllers]]
+# controller = 1
+# 
+# [config.i2c.controllers.ports.A]
+# name = "ondevice"
+# 
+# [[config.i2c.controllers.ports.A.pins]]
+# pins = [ 8, 9 ]
+# af = 4
+# 
+# [[config.i2c.devices]]
+# controller = 1
+# address = 0x76
+# device = "bme68x"
+# description = "Bosch air quality sensor"
 
 [tasks.mqtt]
 name = "task-mqtt"
@@ -83,8 +124,6 @@ features = ["userlib/log-itm", "userlib/panic-messages"]
 #task-slots = ["aether", "uart", "mdns"]
 task-slots = ["aether", "uart"]
 stacksize = 16384
-
-[config]
 
 [config.aether]
 pan_id = 0x1eaf
