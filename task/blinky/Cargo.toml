@@ -1,0 +1,19 @@
+[package]
+name = "task-blinky"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cortex-m = {version = "0.7", features = ["inline-asm"]}
+cortex-m-semihosting = {version = "*"}
+userlib = {path = "../../sys/userlib"}
+drv-nrf52-gpio-api = {path = "../../drv/nrf52-gpio/api"}
+
+[features]
+itm = [ "userlib/log-itm" ]
+semihosting = [ "userlib/log-semihosting" ]
+
+[[bin]]
+name = "task-blinky"
+test = false
+bench = false
