@@ -1,5 +1,7 @@
 # Hubris
 
+# THIS IS A FORK WITH NRF52840 SUPPORT
+
 [![build](https://github.com/oxidecomputer/hubris/workflows/build/badge.svg)](https://github.com/oxidecomputer/hubris/actions?query=workflow%3Abuild)
 
 Hubris is a microcontroller operating environment designed for deeply-embedded
