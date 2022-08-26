@@ -139,6 +139,8 @@ impl From<Ipv6Address> for smoltcp::wire::Ipv6Address {
 pub enum AetherError {
     /// No Packets to recieve. Will not wake task until there is a packet.
     QueueEmpty = 1,
+    /// Can't transmit bytes because queue is full.
+    QueueFull,
     /// No space in the transmit buffer.
     NoTransmitSlot,
     /// This socket is owned by a different task (check app.toml).

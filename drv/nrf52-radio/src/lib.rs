@@ -302,7 +302,6 @@ impl Radio<'_> {
     pub fn start_transmit(&self) {
         self.turn_off();
         self.set_mode(DriverState::CcaTx);
-        userlib::hl::sleep_for(40);
 
         self.configure_packet_buffer(&self.transmit_buffer);
         self.initialize();
@@ -437,7 +436,8 @@ impl Radio<'_> {
                     // transition back to Rx
                     self.set_mode(DriverState::Rx);
                     if !self.transmit_buffer.is_empty() {
-                        self.start_transmit();
+                        userlib::hl::sleep_for(60);
+                        return self.start_transmit();
                     }
                 }
                 RadioState::Tx => {

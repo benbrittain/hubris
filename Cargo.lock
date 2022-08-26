@@ -3998,6 +3998,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "task-throughput"
+version = "0.1.0"
+dependencies = [
+ "num-traits",
+ "serde",
+ "ssmarshal",
+ "task-aether-api",
+ "userlib",
+]
+
+[[package]]
 name = "task-uartecho"
 version = "0.1.0"
 dependencies = [

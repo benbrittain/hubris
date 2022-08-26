@@ -69,18 +69,28 @@ priority = 2
 max-sizes = {flash = 131072, ram = 65536 }
 stacksize = 32768
 start = true
-features = ["itm", "log-smoltcp"]
+#features = ["itm", "log-smoltcp"]
+features = []
 uses = ["radio", "ficr", "rng", "clock"]
 task-slots = ["rng_driver"]
 interrupts = { "radio.irq" = 1 }
 
-[tasks.mqtt]
-name = "task-mqtt"
+# [tasks.mqtt]
+# name = "task-mqtt"
+# priority = 4
+# max-sizes = {flash = 65536, ram = 32768 }
+# start = true
+# features = ["userlib/log-itm", "userlib/panic-messages"]
+# task-slots = ["aether", "uart"]
+# stacksize = 16384
+
+[tasks.throughput]
+name = "task-throughput"
 priority = 4
 max-sizes = {flash = 65536, ram = 32768 }
 start = true
 features = ["userlib/log-itm", "userlib/panic-messages"]
-task-slots = ["aether", "uart"]
+task-slots = ["aether"]
 stacksize = 16384
 
 [config]
@@ -88,8 +98,15 @@ stacksize = 16384
 [config.aether]
 pan_id = 0x1eaf
 
-[config.aether.sockets.mqtt]
-kind = "tcp"
-owner = {name = "mqtt", notification = 1}
-tx = { bytes = 4096 }
-rx = { bytes = 4096 }
+# [config.aether.sockets.mqtt]
+# kind = "tcp"
+# owner = {name = "mqtt", notification = 1}
+# tx = { bytes = 2048 }
+# rx = { bytes = 8192 }
+
+[config.aether.sockets.throughput]
+kind = "udp"
+port = 2001
+owner = {name = "throughput", notification = 1}
+tx = { packets = 8, bytes = 1024 }
+rx = { packets = 8, bytes = 1024 }

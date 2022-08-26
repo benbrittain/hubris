@@ -24,6 +24,7 @@ pub enum SocketHandleType {
 
 pub struct AetherServer<'a> {
     socket_handles: [SocketHandleType; crate::generated::SOCKET_COUNT + 1],
+    client_waiting_to_send: [bool; crate::generated::SOCKET_COUNT + 1],
     socket_set: SocketSet<'a>,
     iface: Interface<'a>,
     device: nrf52_radio::Radio<'a>,
@@ -46,6 +47,7 @@ impl<'a> AetherServer<'a> {
             device,
             rng,
             dns_query: None,
+            client_waiting_to_send: [false; crate::generated::SOCKET_COUNT + 1],
         }
     }
 
@@ -57,6 +59,43 @@ impl<'a> AetherServer<'a> {
         self.iface
             .poll(time, &mut self.device, &mut self.socket_set)
     }
+
+
+    /// Iterate over sockets, waking any that can do work.
+    pub fn wake_sockets(&mut self) {
+        // There's something to do! Iterate over sockets looking for work.
+        // TODO making every packet O(n) in the number of sockets is super
+        // lame; provide a Waker to fix this.
+        for i in 0..crate::generated::SOCKET_COUNT {
+            let want_to_send = self.client_waiting_to_send[i];
+            let handle = self
+                .socket_handles
+                .get(i)
+                .cloned().unwrap();
+
+            match handle {
+                SocketHandleType::Udp(handle) => {
+                    let socket = self.socket_set.get_mut::<udp::Socket>(handle);
+                    if socket.can_recv() || (want_to_send && socket.can_send()) {
+                        let (task_id, notification) = crate::generated::SOCKET_OWNERS[i];
+                        let task_id = sys_refresh_task_id(task_id);
+                        sys_post(task_id, notification);
+                    }
+                }
+                SocketHandleType::Tcp(handle) => {
+                    let socket = self.socket_set.get_mut::<tcp::Socket>(handle);
+                    if socket.can_recv() || (want_to_send && socket.can_send()) {
+                        let (task_id, notification) = crate::generated::SOCKET_OWNERS[i];
+                        let task_id = sys_refresh_task_id(task_id);
+                        sys_post(task_id, notification);
+                    }
+                    self.socket_set.get_mut::<tcp::Socket>(handle);
+                }
+                SocketHandleType::Dns(handle) => unreachable!(),
+            };
+        }
+    }
+
 
     /// Gets the udp socket `index`. If `index` is out of range, returns
     /// `BadMessage`. If the socket is not udp, error
@@ -129,7 +168,6 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
                     }
                 }
                 e => {
-                    sys_log!("got an unknown error: {:?}", e);
                     Err(AetherError::Unknown.into())
                 }
             }
@@ -230,6 +268,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
         socket: SocketName,
         payload: Leased<idol_runtime::R, [u8]>,
     ) -> Result<u32, RequestError<AetherError>> {
+        let socket_index = socket as usize;
         if crate::generated::SOCKET_OWNERS[socket as usize].0.index()
             != msg.sender.index()
         {
@@ -249,9 +288,16 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
                 Err(e) => (0, Err(e)),
             }
         }) {
-            Ok(Ok(len)) => Ok(len),
+            Ok(Ok(len)) => {
+                self.client_waiting_to_send[socket_index] = false;
+                Ok(len)
+            },
+            //Err(smoltcp::Error::Exhausted) => {
+            //    self.client_waiting_to_send[socket_index] = true;
+            //    Err(AetherError::QueueFull.into())
+            //}
             Ok(Err(_)) => Err(RequestError::Fail(ClientError::WentAway)),
-            Err(_) => Err(AetherError::SendError.into()),
+            Err(_) => Err(AetherError::Unknown.into()),
         }
     }
 
@@ -298,6 +344,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
         metadata: UdpMetadata,
         payload: Leased<idol_runtime::R, [u8]>,
     ) -> Result<(), RequestError<AetherError>> {
+        let socket_index = socket as usize;
         if crate::generated::SOCKET_OWNERS[socket as usize].0.index()
             != msg.sender.index()
         {
@@ -311,10 +358,12 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
                 payload
                     .read_range(0..payload.len(), buf)
                     .map_err(|_| RequestError::went_away())?;
+                self.client_waiting_to_send[socket_index] = false;
                 Ok(())
             }
             Err(udp::SendError::BufferFull) => {
-                Err(AetherError::NoTransmitSlot.into())
+                self.client_waiting_to_send[socket_index] = true;
+                Err(AetherError::QueueFull.into())
             }
             e => panic!("couldn't send packet {:?}", e),
         }

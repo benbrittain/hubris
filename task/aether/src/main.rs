@@ -7,7 +7,7 @@ use drv_rng_api;
 use smoltcp::{
     iface::{
         FragmentsCache, InterfaceBuilder, Neighbor, NeighborCache,
-        PacketAssembler, SocketSet,
+        PacketAssembler, SocketSet, Routes,
     },
     socket::{dns, udp},
     time::Instant,
@@ -34,7 +34,7 @@ const NEIGHBORS: usize = 4;
 /// Notification mask for our IRQ; must match configuration in app.toml.
 const RADIO_IRQ: u32 = 1;
 
-const MAX_FRAGMENTS: usize = 2;
+const MAX_FRAGMENTS: usize = 4;
 
 static mut PACKET_FRAGMENTS: [[u8; IEEE802_LINK_MTU]; MAX_FRAGMENTS] =
     [[0; IEEE802_LINK_MTU]; MAX_FRAGMENTS];
@@ -82,9 +82,9 @@ fn main() -> ! {
         IpCidr::new(site_local_ipv6_addr, 64),
         //        IpCidr::new(link_local_ipv6_addr, 64),
     ];
-    for addr in ip_addrs {
-        sys_log!("IP addr: {}", addr);
-    }
+    //for addr in ip_addrs {
+    //    sys_log!("IP addr: {}", addr);
+    //}
 
     let mut neighbor_cache_storage: [Option<(IpAddress, Neighbor)>; NEIGHBORS] =
         [None; NEIGHBORS];
@@ -94,6 +94,8 @@ fn main() -> ! {
         [
             PacketAssembler::<'_>::new(&mut PACKET_FRAGMENTS[0][..]),
             PacketAssembler::<'_>::new(&mut PACKET_FRAGMENTS[1][..]),
+            PacketAssembler::<'_>::new(&mut PACKET_FRAGMENTS[2][..]),
+            PacketAssembler::<'_>::new(&mut PACKET_FRAGMENTS[3][..]),
         ]
     };
     let mut packet_index_cache: [Option<(SixlowpanFragKey, usize)>;
@@ -103,6 +105,9 @@ fn main() -> ! {
         &mut packet_index_cache[..],
     );
 
+    let mut routes_storage = [None; 1];
+    let routes = Routes::new(&mut routes_storage[..]);
+
     let mut out_packet_buffer = [0u8; IEEE802_LINK_MTU];
 
     let mut builder = InterfaceBuilder::new()
@@ -111,12 +116,15 @@ fn main() -> ! {
     builder = builder
         .hardware_addr(ieee802154_addr.into())
         .neighbor_cache(neighbor_cache)
+        .routes(routes)
         .sixlowpan_fragments_cache_timeout(smoltcp::time::Duration::from_secs(
-            2,
+            1,
         ))
         .sixlowpan_fragments_cache(fragments_cache)
         .sixlowpan_out_packet_cache(&mut out_packet_buffer[..]);
-    let iface = builder.finalize(&mut radio);
+    let mut iface = builder.finalize(&mut radio);
+    iface.routes_mut().add_default_ipv6_route(smoltcp::wire::Ipv6Address([0xfd, 0x00, 0x1e, 0xaf,
+            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1])).unwrap();
 
     let mut socket_storage: [_; generated::SOCKET_COUNT + 1] =
         Default::default();
@@ -177,15 +185,7 @@ fn main() -> ! {
         let activity = poll_result.unwrap_or(true);
 
         if activity {
-            for i in 0..generated::SOCKET_COUNT {
-                // TODO check if there is a packet on the port
-                //if server.get_socket_mut(i).is_ok() {
-                let (task_id, notification) = generated::SOCKET_OWNERS[i];
-                let task_id = userlib::sys_refresh_task_id(task_id);
-                userlib::sys_post(task_id, notification);
-                //}
-            }
-            // TODO poll at timing perhaps?
+            server.wake_sockets();
         } else {
             let mut msgbuf = [0u8; server::INCOMING_SIZE];
             idol_runtime::dispatch_n(&mut msgbuf, &mut server);
