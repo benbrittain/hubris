@@ -69,8 +69,8 @@ priority = 2
 max-sizes = {flash = 131072, ram = 65536 }
 stacksize = 32768
 start = true
-#features = ["itm", "log-smoltcp"]
-features = []
+features = ["itm", "log-smoltcp"]
+#features = []
 uses = ["radio", "ficr", "rng", "clock"]
 task-slots = ["rng_driver"]
 interrupts = { "radio.irq" = 1 }
@@ -97,6 +97,7 @@ stacksize = 16384
 
 [config.aether]
 pan_id = 0x1eaf
+channel = 19
 
 # [config.aether.sockets.mqtt]
 # kind = "tcp"

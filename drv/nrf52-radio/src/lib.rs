@@ -15,6 +15,28 @@ use crate::ringbuf::{RingBufferRx, RingBufferTx};
 /// Mask of known bytes in ACK packet
 pub const MHMU_MASK: u32 = 0xff000700;
 
+/// The IEEE 802.15.4 standard defines 16 channels [11 - 26]
+/// of 5 MHz each in the 2450 MHz frequency band.
+#[repr(u8)]
+pub enum Channel {
+    Channel11 = 5,
+    Channel12 = 10,
+    Channel13 = 15,
+    Channel14 = 20,
+    Channel15 = 25,
+    Channel16 = 30,
+    Channel17 = 35,
+    Channel18 = 40,
+    Channel19 = 45,
+    Channel20 = 50,
+    Channel21 = 55,
+    Channel22 = 60,
+    Channel23 = 65,
+    Channel24 = 70,
+    Channel25 = 75,
+    Channel26 = 80,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Copy, Clone)]
 enum DriverState {
@@ -68,6 +90,7 @@ pub struct Radio<'a> {
     transmit_buffer: RingBufferTx<16>,
     receive_buffer: RingBufferRx<16>,
     mode: UnsafeCell<DriverState>,
+    channel: Option<Channel>,
 }
 
 impl Radio<'_> {
@@ -79,6 +102,7 @@ impl Radio<'_> {
             transmit_buffer: RingBufferTx::<16>::new(),
             receive_buffer: RingBufferRx::<16>::new(),
             mode: UnsafeCell::new(DriverState::Sleep),
+            channel: None,
         }
     }
 
@@ -171,6 +195,10 @@ impl Radio<'_> {
         });
     }
 
+    pub fn set_channel(&mut self, channel: Channel) {
+        self.channel = Some(channel);
+    }
+
     pub fn initialize(&self) {
         // Setup high frequency clocks.
         self.initialize_clocks();
@@ -193,9 +221,10 @@ impl Radio<'_> {
 
         // Configure radio to use 2450Mhz aka Channel 20.
         // TODO don't hard code this.
+        let channel = *self.channel.as_ref().expect("Channel must be set") as u8;
         self.radio
             .frequency
-            .write(|w| unsafe { w.frequency().bits(45) });
+            .write(|w| unsafe { w.frequency().bits(channel) });
 
         // Configure radio to transmit at 4db
         // TODO don't hard code this.
@@ -447,7 +476,7 @@ impl Radio<'_> {
                     // machine
                     self.enable_interrupts();
                     return;
-                },
+                }
                 s => {
                     panic!("Don't know how to handle {:?} during event end", s)
                 }

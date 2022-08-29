@@ -50,6 +50,7 @@ fn main() -> ! {
 
     // Start up the radio.
     let mut radio = nrf52_radio::Radio::new();
+    radio.set_channel(generated::CHANNEL);
     radio.initialize();
 
     // Derive an IP address for our WPAN using IEEE UEI-64.

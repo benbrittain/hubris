@@ -54,6 +54,7 @@ pub type SocketMap = BTreeMap<String, SocketConfig>;
 #[derive(Deserialize)]
 pub struct AetherConfig {
     pub pan_id: u16,
+    pub channel: u16,
     /// Sockets known to the system, indexed by name.
     pub sockets: Option<SocketMap>,
 }
@@ -118,6 +119,10 @@ fn generate_aether_config(
     }
 
     let pan_id = config.pan_id;
+    let mut channel = String::from("Channel");
+    channel.push_str(&config.channel.to_string());
+    let channel: syn::Ident = syn::parse_str(&channel).unwrap();
+
     writeln!(
         out,
         "{}",
@@ -125,6 +130,7 @@ fn generate_aether_config(
             #[allow(unused_imports)]
             use smoltcp::wire::Ieee802154Pan;
             pub const PAN_ID: Ieee802154Pan = Ieee802154Pan(#pan_id);
+            pub const CHANNEL: nrf52_radio::Channel = nrf52_radio::Channel::#channel;
         }
     )?;
 
