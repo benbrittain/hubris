@@ -7,7 +7,7 @@ use drv_rng_api;
 use smoltcp::{
     iface::{
         FragmentsCache, InterfaceBuilder, Neighbor, NeighborCache,
-        PacketAssembler, SocketSet, Routes,
+        PacketAssembler, Routes, SocketSet,
     },
     socket::{dns, udp},
     time::Instant,
@@ -124,8 +124,13 @@ fn main() -> ! {
         .sixlowpan_fragments_cache(fragments_cache)
         .sixlowpan_out_packet_cache(&mut out_packet_buffer[..]);
     let mut iface = builder.finalize(&mut radio);
-    iface.routes_mut().add_default_ipv6_route(smoltcp::wire::Ipv6Address([0xfd, 0x00, 0x1e, 0xaf,
-            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1])).unwrap();
+    iface
+        .routes_mut()
+        .add_default_ipv6_route(smoltcp::wire::Ipv6Address([
+            0xfd, 0x00, 0x1e, 0xaf, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            0x0, 0x0, 0x0, 0x1,
+        ]))
+        .unwrap();
 
     let mut socket_storage: [_; generated::SOCKET_COUNT + 1] =
         Default::default();

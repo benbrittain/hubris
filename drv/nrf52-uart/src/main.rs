@@ -48,7 +48,8 @@ fn setup_uarte(
         gpio::Mode::Output,
         gpio::OutputType::PushPull,
         gpio::Pull::None,
-    ).unwrap();
+    )
+    .unwrap();
 
     gpio.configure(
         rx.0,
@@ -56,7 +57,8 @@ fn setup_uarte(
         gpio::Mode::Input,
         gpio::OutputType::PushPull,
         gpio::Pull::None,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Configure UARTE to use those pins.
     uarte.psel.rxd.write(|w| {
@@ -197,7 +199,7 @@ impl NotificationHandler for UarteServer<'_> {
                         panic!("dropped bytes!");
                     }
                     self.uarte.events_endrx.reset();
-                    self.uarte.tasks_startrx.write(|w| w.bits(1) );
+                    self.uarte.tasks_startrx.write(|w| w.bits(1));
                 }
             }
 

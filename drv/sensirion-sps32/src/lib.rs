@@ -196,7 +196,8 @@ impl Sensiron {
             .uart
             .read(0, &mut buffer)
             .map_err(SensironError::UartError)?;
-        hdlc::decode(&buffer[0..amount_read], decoded).map_err(SensironError::HdlcError)?;
+        hdlc::decode(&buffer[0..amount_read], decoded)
+            .map_err(SensironError::HdlcError)?;
         let addr = decoded[0];
         let resp_cmd = decoded[1];
         if req_cmd != resp_cmd {

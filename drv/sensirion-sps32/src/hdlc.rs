@@ -171,5 +171,5 @@ pub enum HDLCError {
     /// More than 259 bytes resulted after decoding SHDLC frame.
     TooMuchDecodedData,
     /// Provided Out buffer is too small to decode.
-    OutBufferTooSmall
+    OutBufferTooSmall,
 }

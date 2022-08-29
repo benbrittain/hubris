@@ -60,7 +60,6 @@ impl<'a> AetherServer<'a> {
             .poll(time, &mut self.device, &mut self.socket_set)
     }
 
-
     /// Iterate over sockets, waking any that can do work.
     pub fn wake_sockets(&mut self) {
         // There's something to do! Iterate over sockets looking for work.
@@ -68,24 +67,25 @@ impl<'a> AetherServer<'a> {
         // lame; provide a Waker to fix this.
         for i in 0..crate::generated::SOCKET_COUNT {
             let want_to_send = self.client_waiting_to_send[i];
-            let handle = self
-                .socket_handles
-                .get(i)
-                .cloned().unwrap();
+            let handle = self.socket_handles.get(i).cloned().unwrap();
 
             match handle {
                 SocketHandleType::Udp(handle) => {
                     let socket = self.socket_set.get_mut::<udp::Socket>(handle);
-                    if socket.can_recv() || (want_to_send && socket.can_send()) {
-                        let (task_id, notification) = crate::generated::SOCKET_OWNERS[i];
+                    if socket.can_recv() || (want_to_send && socket.can_send())
+                    {
+                        let (task_id, notification) =
+                            crate::generated::SOCKET_OWNERS[i];
                         let task_id = sys_refresh_task_id(task_id);
                         sys_post(task_id, notification);
                     }
                 }
                 SocketHandleType::Tcp(handle) => {
                     let socket = self.socket_set.get_mut::<tcp::Socket>(handle);
-                    if socket.can_recv() || (want_to_send && socket.can_send()) {
-                        let (task_id, notification) = crate::generated::SOCKET_OWNERS[i];
+                    if socket.can_recv() || (want_to_send && socket.can_send())
+                    {
+                        let (task_id, notification) =
+                            crate::generated::SOCKET_OWNERS[i];
                         let task_id = sys_refresh_task_id(task_id);
                         sys_post(task_id, notification);
                     }
@@ -95,7 +95,6 @@ impl<'a> AetherServer<'a> {
             };
         }
     }
-
 
     /// Gets the udp socket `index`. If `index` is out of range, returns
     /// `BadMessage`. If the socket is not udp, error
@@ -167,9 +166,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
                         Ok(data.len() as u32)
                     }
                 }
-                e => {
-                    Err(AetherError::Unknown.into())
-                }
+                e => Err(AetherError::Unknown.into()),
             }
         } else if socket.may_send() {
             Err(AetherError::RemoteTcpClose.into())
@@ -291,7 +288,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
             Ok(Ok(len)) => {
                 self.client_waiting_to_send[socket_index] = false;
                 Ok(len)
-            },
+            }
             //Err(smoltcp::Error::Exhausted) => {
             //    self.client_waiting_to_send[socket_index] = true;
             //    Err(AetherError::QueueFull.into())

@@ -221,7 +221,8 @@ impl Radio<'_> {
 
         // Configure radio to use 2450Mhz aka Channel 20.
         // TODO don't hard code this.
-        let channel = *self.channel.as_ref().expect("Channel must be set") as u8;
+        let channel =
+            *self.channel.as_ref().expect("Channel must be set") as u8;
         self.radio
             .frequency
             .write(|w| unsafe { w.frequency().bits(channel) });

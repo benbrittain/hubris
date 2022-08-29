@@ -93,14 +93,16 @@ fn main() -> ! {
                 partical_size: sensor_data.partical_size,
             };
             let encoded_msg: Vec<u8, 128> = to_vec(&sensor_data).unwrap();
-            mqtt.client.publish(
-                "particle",
-                encoded_msg.as_slice(),
-                QoS::AtMostOnce,
-                Retain::NotRetained,
-                //&[Property::UserProperty("version", "0")],
-                &[],
-            ).unwrap();
+            mqtt.client
+                .publish(
+                    "particle",
+                    encoded_msg.as_slice(),
+                    QoS::AtMostOnce,
+                    Retain::NotRetained,
+                    //&[Property::UserProperty("version", "0")],
+                    &[],
+                )
+                .unwrap();
             sys_log!("published");
         }
 

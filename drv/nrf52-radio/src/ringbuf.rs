@@ -1,6 +1,6 @@
+use ::ringbuf::{ringbuf as r, ringbuf_entry};
 use core::cell::{Cell, UnsafeCell};
 use core::mem::MaybeUninit;
-use ::ringbuf::{ringbuf as r, ringbuf_entry};
 
 /// The maximum size of a 802.15.4 packet payload.
 const PACKET_SIZE: usize = 255;
@@ -75,7 +75,10 @@ impl<const CAP: usize> RingBufferRx<CAP> {
 
     /// Move the write pointer IFF we got a packet
     pub fn got_packet(&self) {
-        ringbuf_entry!(Trace::RxGot(mask(CAP, self.write_idx.get()), self.len()));
+        ringbuf_entry!(Trace::RxGot(
+            mask(CAP, self.write_idx.get()),
+            self.len()
+        ));
         self.write_idx.set(self.write_idx.get() + 1);
     }
 
@@ -95,8 +98,8 @@ impl<const CAP: usize> RingBufferRx<CAP> {
             assert!(packet_len < PACKET_SIZE);
 
             let mpdu_slice = &mut slice[PHY_LEN_LEN..packet_len - CRC_LEN];
-//            let frame =
- //               smoltcp::wire::ieee802154::Frame::new_checked(&mpdu_slice);
+            //            let frame =
+            //               smoltcp::wire::ieee802154::Frame::new_checked(&mpdu_slice);
             // userlib::sys_log!("Read: {:?}", frame);
             self.read_idx.set(self.read_idx.get() + 1);
 
@@ -129,8 +132,7 @@ impl<const CAP: usize> RingBufferTx<CAP> {
     /// Provide a buffer to the radio EasyDMA engine.
     pub fn set_as_buffer(&self, radio: &crate::Radio) {
         let index = mask(CAP, self.read_idx.get());
-        let buffer =
-            unsafe { &mut (*self.buf.get())[index] };
+        let buffer = unsafe { &mut (*self.buf.get())[index] };
         let len = buffer[0];
         cortex_m::asm::dsb();
         cortex_m::asm::dmb();
@@ -149,7 +151,7 @@ impl<const CAP: usize> RingBufferTx<CAP> {
 
     pub fn is_full(&self) -> bool {
         ringbuf_entry!(Trace::FullChk(self.len()));
-//        userlib::sys_log!("is full len {}", self.len());
+        //        userlib::sys_log!("is full len {}", self.len());
         self.len() == CAP
     }
 
@@ -163,8 +165,11 @@ impl<const CAP: usize> RingBufferTx<CAP> {
 
     /// Move the write pointer IFF we got a packet
     pub fn sent_packet(&self) {
-//        userlib::sys_log!("~~~~~~~~~~~~~~ SENT PACKET {} ~~~~~~~~~~~~~~", self.read_idx.get());
-        ringbuf_entry!(Trace::TxSent(mask(CAP, self.read_idx.get()), self.len()));
+        //        userlib::sys_log!("~~~~~~~~~~~~~~ SENT PACKET {} ~~~~~~~~~~~~~~", self.read_idx.get());
+        ringbuf_entry!(Trace::TxSent(
+            mask(CAP, self.read_idx.get()),
+            self.len()
+        ));
         self.read_idx.set(self.read_idx.get() + 1);
     }
 
@@ -175,8 +180,7 @@ impl<const CAP: usize> RingBufferTx<CAP> {
     ) -> Option<R> {
         let index = mask(CAP, self.write_idx.get());
         ringbuf_entry!(Trace::TxWrite(index, self.len()));
-        let packet_buf =
-            unsafe { &mut (*self.buf.get())[index] };
+        let packet_buf = unsafe { &mut (*self.buf.get())[index] };
         // TODO these should be unecessary, check.
         cortex_m::asm::dsb();
         cortex_m::asm::dmb();

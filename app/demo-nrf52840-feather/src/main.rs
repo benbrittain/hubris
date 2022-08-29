@@ -5,7 +5,11 @@
 #![no_std]
 #![no_main]
 
-#[cfg(not(any(feature = "panic-itm", feature = "panic-semihosting", feature = "panic-halt")))]
+#[cfg(not(any(
+    feature = "panic-itm",
+    feature = "panic-semihosting",
+    feature = "panic-halt"
+)))]
 // Panic behavior controlled by Cargo features:
 #[cfg(feature = "panic-halt")]
 extern crate panic_halt;
