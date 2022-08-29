@@ -1,0 +1,26 @@
+[package]
+name = "drv-nrf52-i2c"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+userlib = {path = "../../sys/userlib", features = ["panic-messages"]}
+zerocopy = "0.6.1"
+nrf52840-pac = { version = "0.11.0", default-features = false }
+num-traits = { version = "0.2.12", default-features = false }
+drv-i2c-api = {path = "../i2c-api"}
+drv-nrf52-gpio-api = {path = "../../drv/nrf52-gpio/api"}
+ringbuf = {path = "../../lib/ringbuf" }
+cortex-m = "*"
+
+[build-dependencies]
+build-util = {path = "../../build/util"}
+build-i2c = {path = "../../build/i2c"}
+anyhow = "1.0.31"
+
+# This section is here to discourage RLS/rust-analyzer from doing test builds,
+# since test builds don't work for cross compilation.
+[[bin]]
+name = "drv-nrf52-i2c"
+test = false
+bench = false
