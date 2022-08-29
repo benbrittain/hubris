@@ -1,4 +1,4 @@
-use crate::RADIO_IRQ;
+use crate::{RADIO_IRQ, TIMER_MASK};
 use idol_runtime::{ClientError, Leased, NotificationHandler, RequestError};
 use rand::Rng;
 use smoltcp::iface::{Interface, SocketHandle, SocketSet};
@@ -11,6 +11,9 @@ use task_aether_api::{
 };
 
 use userlib::*;
+
+// TODO play around with this size
+const TIMER_INTERVAL: u64 = 100;
 
 /// Size of buffer that must be allocated to use `dispatch`.
 pub const INCOMING_SIZE: usize = idl::INCOMING_SIZE;
@@ -458,14 +461,18 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
 
 impl NotificationHandler for AetherServer<'_> {
     fn current_notification_mask(&self) -> u32 {
-        RADIO_IRQ
+        RADIO_IRQ| TIMER_MASK
     }
 
     fn handle_notification(&mut self, bits: u32) {
         // Interrupt dispatch.
+        self.device.handle_interrupt();
         if bits & RADIO_IRQ != 0 {
-            self.device.handle_interrupt();
             userlib::sys_irq_control(RADIO_IRQ, true);
+        }
+        if bits & TIMER_MASK != 0 {
+            let deadline = sys_get_timer().now + TIMER_INTERVAL;
+            sys_set_timer(Some(deadline), TIMER_MASK);
         }
     }
 }

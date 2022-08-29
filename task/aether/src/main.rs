@@ -32,7 +32,10 @@ const IEEE802_LINK_MTU: usize = 1280;
 const NEIGHBORS: usize = 4;
 
 /// Notification mask for our IRQ; must match configuration in app.toml.
-const RADIO_IRQ: u32 = 1;
+const RADIO_IRQ: u32 = 1 << 0;
+
+/// Notification mask for our timer.
+const TIMER_MASK: u32 = 1 << 2;
 
 const MAX_FRAGMENTS: usize = 4;
 
@@ -186,6 +189,7 @@ fn main() -> ! {
     );
 
     loop {
+//        sys_log!("loop'd");
         let poll_result = server
             .poll(Instant::from_millis(userlib::sys_get_timer().now as i64));
         let activity = poll_result.unwrap_or(true);

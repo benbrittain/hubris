@@ -7,15 +7,36 @@ use zerocopy::{AsBytes, FromBytes};
 
 pub type DnsQueryHandle = usize;
 
+//const TIMER_INTERVAL: u64 = 1000;
+//const AETHER_MASK: u32 = 1 << 0;
+//const TIMER_MASK: u32 = 1 << 4;
+
 impl Aether {
     pub fn resolve(&self, url: &str) -> Result<Ipv6Address, AetherError> {
         self.start_resolve_query(url.as_bytes())?;
+
         loop {
+            // let deadline = sys_get_timer().now + TIMER_INTERVAL;
+            // sys_set_timer(Some(deadline), TIMER_MASK);
             match self.resolve_query() {
-                Ok(ip) => return Ok(ip),
+                Ok(ip) => {
+                    return Ok(ip);
+                },
                 Err(AetherError::QueueEmpty) => {
                     // Our incoming queue is empty. Wait for more packets.
-                    sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
+                    //loop {
+                        //sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
+                        //let msginfo = sys_recv_open(&mut [], AETHER_MASK);
+                        //sys_log!("HELLO {}", msginfo.sender);
+                        //if msginfo.sender == TaskId::KERNEL {
+                        //}
+                        //    // we got a timeout and we should resend the query
+                        //    if msginfo.operation & 1 != TIMER_MASK {
+                        //        self.start_resolve_query(url.as_bytes())?;
+                        //    }
+                        //    break;
+                        //}
+                    //}
                 }
                 Err(e) => return Err(e),
             }
