@@ -86,8 +86,8 @@ stacksize = 2200
 
 [tasks.air_quality]
 name = "task-air-quality"
-priority = 3
-max-sizes = {flash = 32768, ram = 4096}
+priority = 5
+max-sizes = {flash = 65536, ram = 4096}
 start = true
 features = ["itm", "userlib/log-itm"]
 task-slots = ["i2c_driver"]
@@ -117,7 +117,7 @@ af = 4
 
 [[config.i2c.devices]]
 controller = 1
-address = 0x76
+address = 0x77
 device = "bme68x"
 description = "Bosch air quality sensor"
 

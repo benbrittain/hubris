@@ -19,11 +19,11 @@ task_slot!(I2C, i2c_driver);
 include!(concat!(env!("OUT_DIR"), "/i2c_config.rs"));
 
 #[derive(Debug)]
-struct NrfSpi {
+struct NrfI2c {
     pub i2c: i2c_api::I2cDevice,
 }
 
-impl Interface for NrfSpi {
+impl Interface for NrfI2c {
     fn interface_type(&self) -> CommInterface {
         CommInterface::I2C
     }
@@ -33,24 +33,9 @@ impl Interface for NrfSpi {
         reg_addr: u8,
         reg_data: &mut [u8],
     ) -> Result<(), bme68x_rust::Error> {
-        todo!()
-        //match self.device.read_reg::<u8, u8>(Register::ID as u8) {
-        //    Ok(id) if id == ADT7420_ID => Ok(()),
-        //    Ok(id) => Err(Error::BadID { id }),
-        //    Err(code) => Err(Error::BadValidate { code }),
-        //}
-        //sys_log!("READ");
-        //self.i2c.read();
-        ////let resp = self.i2c.read();
-        ////sys_log!("> read");
-        ////sys_log!("> read > spi.write");
-        ////self.spi.write(self.device_id, &[reg_addr]);
-        ////sys_log!("> read > spi.read");
-        ////self.spi.read(self.device_id, reg_data);
-        //      //  self.spi.write(self.device_id, reg_data);
-        //      //  Ok(())
-        //Err(Error::Unknown)
-        //todo!()
+        let r = self.i2c.read_reg_into(reg_addr, reg_data);
+        //sys_log!("erro: {:?}", r);
+        Ok(())
     }
 
     fn write(
@@ -58,41 +43,33 @@ impl Interface for NrfSpi {
         reg_addr: u8,
         buf: &[u8],
     ) -> Result<(), bme68x_rust::Error> {
-        sys_log!("WRITE 1");
-        self.i2c.write(&[reg_addr]);
-        sys_log!("WRITE 2");
-        self.i2c.write(buf);
+        let mut new_buf = [0; 16];
+        new_buf[0] = reg_addr;
+        new_buf[1..buf.len() + 1].copy_from_slice(buf);
+        //sys_log!("WRITE {:x}: {:x?}", reg_addr, buf);
+        let r = self.i2c.write(&new_buf[..buf.len() + 1]);
+        //sys_log!("res: {:?}", r);
+
+        //sys_log!("WRITE 2");
+        //self.i2c.write(buf);
         Ok(())
     }
 
-    fn delay(&self, _: u32) {
-        userlib::hl::sleep_for(100)
-        //todo!()
+    fn delay(&self, d: u32) {
+        userlib::hl::sleep_for((d / 100).into())
     }
 }
 
-#[export_name = "main"]
-fn main() -> ! {
-    let i2c_task = I2C.get_task_id();
-    let i2c = i2c_config::devices::bme68x(I2C.get_task_id())[0];
-    //let i2c = i2c_api::I2cDevice::from(I2C.get_task_id());
-
-    userlib::hl::sleep_for(100);
-    sys_log!("Hello from air-quality");
-    sys_log!("reg write: {:?}", i2c.write(&[0xd0]));
-   // sys_log!("reg write: {:?}", i2c.write(&[0xee, 0xd0]));
-    sys_log!("reg read: {:?}", i2c.read_reg::<u8, u8>(0xd0));
-
-    let mut bme = match Device::initialize(NrfSpi { i2c }) {
+/// Set up the Bosch air quality peripheral
+fn setup_bme(i2c: i2c_api::I2cDevice) -> Result<Device<NrfI2c>, Error>{
+    let mut bme = match Device::initialize(NrfI2c { i2c }) {
         Err(e) => {
-            sys_log!("Hello from air-quality {:?}", e);
+            sys_log!("Error in air-quality {:?}", e);
             panic!();
         }
         Ok(b) => b,
     };
 
-
-    sys_log!("setting config");
     // configure device
     bme.set_config(
         DeviceConfig::default()
@@ -101,10 +78,8 @@ fn main() -> ! {
             .oversample_humidity(Sample::X16)
             .oversample_pressure(Sample::Once)
             .oversample_temperature(Sample::X2),
-    )
-    .unwrap();
+    )?;
 
-    sys_log!("setting heater conf");
     // configure heater
     bme.set_gas_heater_conf(
         OperationMode::Forced,
@@ -112,11 +87,18 @@ fn main() -> ! {
             .enable()
             .heater_temp(300)
             .heater_duration(100),
-    )
-    .unwrap();
+    )?;
 
-    //    let time_ms = core::time::Instant::now();
-    sys_log!("Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
+    Ok(bme)
+}
+
+#[export_name = "main"]
+fn main() -> ! {
+    let i2c = i2c_config::devices::bme68x(I2C.get_task_id())[0];
+    let mut bme = setup_bme(i2c).unwrap();
+    sys_log!("Hello from air-quality");
+
+    sys_log!("TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
     for sample_count in 0..300 {
         // Set operating mode
         bme.set_op_mode(OperationMode::Forced).unwrap();
@@ -128,29 +110,19 @@ fn main() -> ! {
         bme.interface.delay(del_period);
 
         // Get the sensor data
-        let mut n_fields = 0;
-        let mut data: SensorData = SensorData::default();
-        bme.get_data(1, &mut data, &mut n_fields).unwrap();
-
-        if n_fields != 0 {
-            sys_log!(
-                "{}, {:?}, {:.2}, {:.2}, {:.2} {:.2} {:x}",
-                sample_count,
-                0,
-                //time_ms.elapsed().as_millis(),
-                data.temperature,
-                data.pressure,
-                data.humidity,
-                data.gas_resistance,
-                data.status,
-            );
-        }
+        let data: SensorData = bme.get_data(OperationMode::Forced).unwrap();
+        sys_log!(
+            "{:?}, {:.2}, {:.2}, {:.2} {:.2} {:x}",
+            sys_get_timer().now,
+            data.temperature,
+            data.pressure,
+            data.humidity,
+            data.gas_resistance,
+            data.status,
+        );
     }
 
     loop {
-        //        if let Ok(Some(sensor_data)) = sensirion.read_value() {
-        //            sys_log!("{:#?}", sensor_data);
-        //        }
         hl::sleep_for(8000);
     }
 }

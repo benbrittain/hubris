@@ -82,6 +82,7 @@ fn log_fault(t: usize, fault: &abi::FaultInfo) {
 
         abi::FaultInfo::Panic => {
             sys_log!("Task #{} Panic!", t);
+            loop {}
         }
 
         abi::FaultInfo::Injected(who) => {

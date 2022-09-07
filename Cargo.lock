@@ -180,8 +180,6 @@ dependencies = [
 [[package]]
 name = "bme68x-rust"
 version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "855ca716cb46de2e29a49672db293a07c94d3ea65994b4ef52772e9c397a27aa"
 
 [[package]]
 name = "bstringify"
