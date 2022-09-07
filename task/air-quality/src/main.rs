@@ -61,7 +61,7 @@ impl Interface for NrfI2c {
 }
 
 /// Set up the Bosch air quality peripheral
-fn setup_bme(i2c: i2c_api::I2cDevice) -> Result<Device<NrfI2c>, Error>{
+fn setup_bme(i2c: i2c_api::I2cDevice) -> Result<Device<NrfI2c>, Error> {
     let mut bme = match Device::initialize(NrfI2c { i2c }) {
         Err(e) => {
             sys_log!("Error in air-quality {:?}", e);
@@ -98,31 +98,26 @@ fn main() -> ! {
     let mut bme = setup_bme(i2c).unwrap();
     sys_log!("Hello from air-quality");
 
-    sys_log!("TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
-    for sample_count in 0..300 {
+    sys_log!("TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm)");
+    loop {
         // Set operating mode
         bme.set_op_mode(OperationMode::Forced).unwrap();
 
         // Delay the remaining duration that can be used for heating
-        let del_period = bme
-            .get_measure_duration(OperationMode::Forced)
-            .wrapping_add(300 as u32 * 1000);
+        let del_period =
+            bme.get_measure_duration(OperationMode::Forced) + (300 * 1000);
         bme.interface.delay(del_period);
 
         // Get the sensor data
-        let data: SensorData = bme.get_data(OperationMode::Forced).unwrap();
-        sys_log!(
-            "{:?}, {:.2}, {:.2}, {:.2} {:.2} {:x}",
-            sys_get_timer().now,
-            data.temperature,
-            data.pressure,
-            data.humidity,
-            data.gas_resistance,
-            data.status,
-        );
-    }
-
-    loop {
-        hl::sleep_for(8000);
+        if let Ok(data) = bme.get_data(OperationMode::Forced) {
+            sys_log!(
+                "{:?}, {:.2}, {:.2}, {:.2} {:.2}",
+                sys_get_timer().now,
+                data.temperature,
+                data.pressure,
+                data.humidity,
+                data.gas_resistance,
+            );
+        }
     }
 }
