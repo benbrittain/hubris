@@ -1,3 +1,4 @@
 target/
+task/air-quality/bsec-generic/*
 itm.txt
 *.swp
