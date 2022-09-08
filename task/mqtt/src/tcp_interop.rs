@@ -54,7 +54,7 @@ impl TcpClientStack for NetworkLayer {
         &mut self,
         socket: &<Self as TcpClientStack>::TcpSocket,
     ) -> Result<bool, <Self as TcpClientStack>::Error> {
-        userlib::hl::sleep_for(300);
+        userlib::hl::sleep_for(200);
         self.aether.is_tcp_active(*socket)
     }
 
@@ -75,18 +75,16 @@ impl TcpClientStack for NetworkLayer {
         bytes: &mut [u8],
     ) -> Result<usize, MqError<<Self as TcpClientStack>::Error>> {
         // block this task until we get back the tcp data
-        loop {
-            match self.aether.recv_tcp_data(self.socket, bytes) {
-                Ok(len) => {
-                    return Ok(len as usize);
-                }
-                //Err(AetherError::QueueEmpty) => {
-                //    // Our incoming queue is empty. Wait for more packets.
-                //    sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
-                //}
-                Err(e) => {
-                    return Err(MqError::Other(e));
-                }
+        match self.aether.recv_tcp_data(self.socket, bytes) {
+            Ok(len) => {
+                return Ok(len as usize);
+            }
+            Err(AetherError::QueueEmpty) => {
+                // Our incoming queue is empty. Wait for more packets.
+                return Err(MqError::WouldBlock);
+            }
+            Err(e) => {
+                return Err(MqError::Other(e));
             }
         }
     }
