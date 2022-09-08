@@ -12,6 +12,7 @@ use heapless::Vec;
 use minimq::Error as MqError;
 use minimq::{self, Minimq, Property, QoS, Retain};
 use postcard::{from_bytes, to_vec};
+use serde::Serialize;
 use task_aether_api::*;
 use userlib::*;
 
@@ -88,6 +89,7 @@ impl AirQuality {
 
     /// Publish the gas sensor data over mqtt if any is available
     fn send_gas_sensor_data(&mut self) {
+        // TODO isolation of the bme logic is kinda messy, reconsider if we do refactoring
         // TODO do this in parallel so we don't block as long
         use bme68x_rust::*;
         self.bme.bme.set_op_mode(OperationMode::Forced).unwrap();
@@ -95,6 +97,7 @@ impl AirQuality {
             self.bme.bme.get_measure_duration(OperationMode::Forced)
                 + (300 * 1000);
         self.bme.bme.interface.delay(del_period);
+
         if let Ok(data) = self.bme.bme.get_data(OperationMode::Forced) {
             let gas_data = air_quality_messages::Gases {
                 humidity: data.humidity,
@@ -102,20 +105,7 @@ impl AirQuality {
                 pressure: data.pressure,
                 voc: data.gas_resistance,
             };
-            let encoded_msg: Vec<u8, 128> = to_vec(&gas_data).unwrap();
-            self.mqtt
-                .client
-                .publish(
-                    "gas",
-                    encoded_msg.as_slice(),
-                    QoS::AtMostOnce,
-                    Retain::NotRetained,
-                    //&[Property::UserProperty("version", "0")],
-                    &[],
-                )
-                .unwrap();
-
-            sys_log!("published gases");
+            self.publish("gas", gas_data);
         }
     }
 
@@ -136,20 +126,25 @@ impl AirQuality {
                 pm10_0_number: sensor_data.pm10_0_number,
                 partical_size: sensor_data.partical_size,
             };
-            let encoded_msg: Vec<u8, 128> = to_vec(&sensor_data).unwrap();
-            self.mqtt
-                .client
-                .publish(
-                    "particle",
-                    encoded_msg.as_slice(),
-                    QoS::AtMostOnce,
-                    Retain::NotRetained,
-                    //&[Property::UserProperty("version", "0")],
-                    &[],
-                )
-                .unwrap();
-            sys_log!("published particles");
+
+            self.publish("particle", sensor_data);
         }
+    }
+
+    fn publish<T: Serialize>(&mut self, channel: &str, msg: T) {
+        let encoded_msg: Vec<u8, 128> = to_vec(&msg).unwrap();
+        self.mqtt
+            .client
+            .publish(
+                channel,
+                encoded_msg.as_slice(),
+                QoS::AtMostOnce,
+                Retain::NotRetained,
+                //&[Property::UserProperty("version", "0")],
+                &[],
+            )
+            .unwrap();
+        sys_log!("published {}", channel);
     }
 
     fn poll(&mut self) -> Result<(), Error> {
