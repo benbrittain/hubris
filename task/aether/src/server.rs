@@ -461,7 +461,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
 
 impl NotificationHandler for AetherServer<'_> {
     fn current_notification_mask(&self) -> u32 {
-        RADIO_IRQ| TIMER_MASK
+        RADIO_IRQ | TIMER_MASK
     }
 
     fn handle_notification(&mut self, bits: u32) {

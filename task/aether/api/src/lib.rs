@@ -21,21 +21,21 @@ impl Aether {
             match self.resolve_query() {
                 Ok(ip) => {
                     return Ok(ip);
-                },
+                }
                 Err(AetherError::QueueEmpty) => {
                     // Our incoming queue is empty. Wait for more packets.
                     //loop {
-                        //sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
-                        //let msginfo = sys_recv_open(&mut [], AETHER_MASK);
-                        //sys_log!("HELLO {}", msginfo.sender);
-                        //if msginfo.sender == TaskId::KERNEL {
-                        //}
-                        //    // we got a timeout and we should resend the query
-                        //    if msginfo.operation & 1 != TIMER_MASK {
-                        //        self.start_resolve_query(url.as_bytes())?;
-                        //    }
-                        //    break;
-                        //}
+                    //sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
+                    //let msginfo = sys_recv_open(&mut [], AETHER_MASK);
+                    //sys_log!("HELLO {}", msginfo.sender);
+                    //if msginfo.sender == TaskId::KERNEL {
+                    //}
+                    //    // we got a timeout and we should resend the query
+                    //    if msginfo.operation & 1 != TIMER_MASK {
+                    //        self.start_resolve_query(url.as_bytes())?;
+                    //    }
+                    //    break;
+                    //}
                     //}
                 }
                 Err(e) => return Err(e),

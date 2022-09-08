@@ -165,7 +165,8 @@ pub fn config(
         "stm32f3-discovery" | "stm32f4-discovery" | "nucleo-h743zi2"
         | "nucleo-h753zi" | "stm32h7b3i-dk" | "gemini-bu-1" | "gimletlet-1"
         | "gimletlet-2" | "gimlet-a" | "gimlet-b" | "psc-1" | "sidecar-1"
-        | "stm32g031-nucleo" | "donglet-g030" | "donglet-g031" | "nrf52840-feather" => {
+        | "stm32g031-nucleo" | "donglet-g030" | "donglet-g031"
+        | "nrf52840-feather" => {
             let cfg = FlashProgramConfig::new(chip_dir.join("openocd.cfg"));
 
             let mut flash = FlashConfig::new(FlashProgram::OpenOcd(cfg));

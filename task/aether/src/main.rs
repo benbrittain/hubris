@@ -189,7 +189,7 @@ fn main() -> ! {
     );
 
     loop {
-//        sys_log!("loop'd");
+        //        sys_log!("loop'd");
         let poll_result = server
             .poll(Instant::from_millis(userlib::sys_get_timer().now as i64));
         let activity = poll_result.unwrap_or(true);
