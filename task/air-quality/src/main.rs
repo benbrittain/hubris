@@ -88,8 +88,8 @@ impl AirQuality {
 
     /// Publish the gas sensor data over mqtt if any is available
     fn send_gas_sensor_data(&mut self) {
+        // TODO do this in parallel so we don't block as long
         use bme68x_rust::*;
-        sys_log!("gas daaaataaa");
         self.bme.bme.set_op_mode(OperationMode::Forced).unwrap();
         let del_period =
             self.bme.bme.get_measure_duration(OperationMode::Forced)
