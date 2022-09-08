@@ -23,8 +23,20 @@ use tcp_interop::NetworkLayer;
 task_slot!(AETHER, aether);
 task_slot!(UART, uart);
 
+pub const AETHER_NOTIFICATION: u32 = 1 << 0;
+pub const PARTICLE_TIMER_NOTIFICATION: u32 = 1 << 7;
+pub const CO2_TIMER_NOTIFICATION: u32 = 1 << 8;
+pub const PARTICLE_TIMER_INTERVAL: u64 = 1000;
+pub const CO2_TIMER_INTERVAL: u64 = 1200;
+
 static SYS_LOGGER: SysLogger = SysLogger;
 pub struct SysLogger;
+
+#[derive(Debug)]
+enum Error {
+    Sensiron(SensironError),
+    Mqtt(MqError<AetherError>),
+}
 
 impl log::Log for SysLogger {
     fn enabled(&self, metadata: &log::Metadata) -> bool {
@@ -37,49 +49,44 @@ impl log::Log for SysLogger {
     fn flush(&self) {}
 }
 
-#[export_name = "main"]
-fn main() -> ! {
-    log::set_logger(&SYS_LOGGER).unwrap();
-    log::set_max_level(log::LevelFilter::Info);
+struct AirQuality {
+    mqtt: Minimq<NetworkLayer, ClockLayer, 256, 16>,
+    aether: Aether,
+    sensirion: Sensiron,
+}
 
-    let uart = Uart::from(UART.get_task_id());
-    let aether = Aether::from(AETHER.get_task_id());
-    let addr = aether.resolve("portal.local".into()).unwrap();
-    let mut mqtt: Minimq<_, _, 256, 16> = Minimq::new(
-        addr.0.into(),
-        "mqtt-aethereo",
-        NetworkLayer {
-            aether,
-            socket: SocketName::mqtt,
-        },
-        ClockLayer {},
-    )
-    .unwrap();
-
-    let mut subscribed = false;
-
-    // Setup partical count peripheral
-    let sensirion = Sensiron::new(uart);
-    let started = sensirion.start_measurement();
-    if let Err(err) = started {
-        // The device could already be on
-        if err != SensironError::WrongDeviceState {
-            panic!("Somthing is busted with the sensor!");
+impl AirQuality {
+    pub fn new(
+        mqtt: Minimq<NetworkLayer, ClockLayer, 256, 16>,
+        aether: Aether,
+        sensirion: Sensiron,
+    ) -> Result<Self, Error> {
+        // Setup partical count peripheral
+        let started = sensirion.start_measurement();
+        if let Err(err) = started {
+            // The device could already be on
+            if err != SensironError::WrongDeviceState {
+                return Err(Error::Sensiron(err));
+            }
         }
+
+        Ok(AirQuality {
+            mqtt,
+            aether,
+            sensirion,
+        })
     }
 
-    loop {
-        if mqtt.client.is_connected() && !subscribed {
-            mqtt.client.subscribe("topic", &[]).unwrap();
-            subscribed = true;
-        }
+    /// Publish the gas sensor data over mqtt if any is available
+    fn send_gas_sensor_data(&mut self) {
 
-        if let Ok(Some(sensor_data)) = sensirion.read_value() {
+    }
+
+    /// Publish the particle sensor data over mqtt if any is available
+    fn send_particle_data(&mut self) {
+        if let Ok(Some(sensor_data)) = self.sensirion.read_value() {
             // this is literally the same structure, maybe
             // make the sps32 crate return this data directly?
-            //
-            // I didn't want the external dependency in it for
-            // some reason.
             let sensor_data = air_quality_messages::Particles {
                 pm1_0_mass: sensor_data.pm1_0_mass,
                 pm2_5_mass: sensor_data.pm2_5_mass,
@@ -93,7 +100,8 @@ fn main() -> ! {
                 partical_size: sensor_data.partical_size,
             };
             let encoded_msg: Vec<u8, 128> = to_vec(&sensor_data).unwrap();
-            mqtt.client
+            self.mqtt
+                .client
                 .publish(
                     "particle",
                     encoded_msg.as_slice(),
@@ -105,9 +113,12 @@ fn main() -> ! {
                 .unwrap();
             sys_log!("published");
         }
+    }
 
-        if let Err(MqError::Network(AetherError::QueueEmpty)) =
-            mqtt.poll(|client, topic, message, properties| {
+    fn poll(&mut self) -> Result<(), Error> {
+        self.send_particle_data();
+        self.mqtt
+            .poll(|client, topic, message, properties| {
                 sys_log!("polling");
                 match topic {
                     "topic" => {
@@ -129,9 +140,91 @@ fn main() -> ! {
                     topic => sys_log!("Unknown topic: {}", topic),
                 };
             })
-        {
-            // Our incoming queue is empty. Wait for more packets.
-            // sys_recv_closed(&mut [], 1, TaskId::KERNEL).unwrap();
-        }
+            .map_err(|e| Error::Mqtt(e))?;
+        Ok(())
     }
 }
+
+#[export_name = "main"]
+fn main() -> ! {
+    log::set_logger(&SYS_LOGGER).unwrap();
+    log::set_max_level(log::LevelFilter::Info);
+
+    let uart = Uart::from(UART.get_task_id());
+    let aether = Aether::from(AETHER.get_task_id());
+    let addr = aether.resolve("portal.local".into()).unwrap();
+    let mut mqtt: Minimq<_, _, 256, 16> = Minimq::new(
+        addr.0.into(),
+        "mqtt-aethereo",
+        NetworkLayer {
+            aether: aether.clone(),
+            socket: SocketName::mqtt,
+        },
+        ClockLayer {},
+    )
+    .unwrap();
+
+    let sensirion = Sensiron::new(uart);
+
+    let mut aq = AirQuality::new(mqtt, aether, sensirion).unwrap();
+
+    loop {
+        aq.poll().unwrap();
+    }
+}
+
+//
+//    let mut subscribed = false;
+//    sys_set_timer(Some(0), PARTICLE_TIMER_NOTIFICATION);
+//
+//    let mut msg = [0; 16];
+//    loop {
+//        sys_log!("LOOP'd : {}", sys_get_timer().now);
+//        let msginfo = sys_recv_open(
+//            &mut msg,
+//            CO2_TIMER_NOTIFICATION
+//                | PARTICLE_TIMER_NOTIFICATION
+//                | AETHER_NOTIFICATION,
+//        );
+//        sys_log!("OP: {:?}", msginfo.operation);
+//
+//        if mqtt.client.is_connected() && !subscribed {
+//            mqtt.client.subscribe("topic", &[]).unwrap();
+//            subscribed = true;
+//        }
+//
+//        if msginfo.operation & CO2_TIMER_NOTIFICATION != 0 {}
+//
+//        if msginfo.operation & PARTICLE_TIMER_NOTIFICATION != 0 {
+//        }
+//
+//        mqtt.poll(|client, topic, message, properties| {
+//            sys_log!("polling");
+//            match topic {
+//                "topic" => {
+//                    let string = match core::str::from_utf8(message) {
+//                        Ok(v) => v,
+//                        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+//                    };
+//                    sys_log!("mqtt> '{}': '{}'", topic, string);
+//                    client
+//                        .publish(
+//                            "echo",
+//                            message,
+//                            QoS::AtMostOnce,
+//                            Retain::NotRetained,
+//                            &[],
+//                        )
+//                        .unwrap();
+//                }
+//                topic => sys_log!("Unknown topic: {}", topic),
+//            };
+//        })
+//        .unwrap();
+//
+//        let target_time = sys_get_timer().now + PARTICLE_TIMER_INTERVAL;
+//        sys_set_timer(Some(target_time), PARTICLE_TIMER_NOTIFICATION);
+//        let target_time = sys_get_timer().now + CO2_TIMER_INTERVAL;
+//        sys_set_timer(Some(target_time), CO2_TIMER_NOTIFICATION);
+//    }
+//}

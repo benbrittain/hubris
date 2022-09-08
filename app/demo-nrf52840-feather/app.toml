@@ -63,26 +63,26 @@ uses = ["rng"]
 start = true
 stacksize = 2200
 
-# [tasks.aether]
-# name = "task-aether"
-# priority = 2
-# max-sizes = {flash = 131072, ram = 65536 }
-# stacksize = 32768
-# start = true
-# features = ["itm", "log-smoltcp"]
-# #features = []
-# uses = ["radio", "ficr", "rng", "clock"]
-# task-slots = ["rng_driver"]
-# interrupts = { "radio.irq" = 1 }
+[tasks.aether]
+name = "task-aether"
+priority = 2
+max-sizes = {flash = 131072, ram = 65536 }
+stacksize = 32768
+start = true
+features = ["itm", "log-smoltcp"]
+#features = []
+uses = ["radio", "ficr", "rng", "clock"]
+task-slots = ["rng_driver"]
+interrupts = { "radio.irq" = 1 }
 
-# [tasks.mqtt]
-# name = "task-mqtt"
-# priority = 4
-# max-sizes = {flash = 65536, ram = 32768 }
-# start = true
-# features = ["userlib/log-itm", "userlib/panic-messages"]
-# task-slots = ["aether", "uart"]
-# stacksize = 16384
+[tasks.mqtt]
+name = "task-mqtt"
+priority = 4
+max-sizes = {flash = 65536, ram = 32768 }
+start = true
+features = ["userlib/log-itm", "userlib/panic-messages"]
+task-slots = ["aether", "uart"]
+stacksize = 16384
 
 [tasks.air_quality]
 name = "task-air-quality"
@@ -121,15 +121,15 @@ address = 0x77
 device = "bme68x"
 description = "Bosch air quality sensor"
 
-# [config.aether]
-# pan_id = 0x1eaf
-# channel = 19
+[config.aether]
+pan_id = 0x1eaf
+channel = 19
 
-# [config.aether.sockets.mqtt]
-# kind = "tcp"
-# owner = {name = "mqtt", notification = 1}
-# tx = { bytes = 2048 }
-# rx = { bytes = 8192 }
+[config.aether.sockets.mqtt]
+kind = "tcp"
+owner = {name = "mqtt", notification = 1}
+tx = { bytes = 2048 }
+rx = { bytes = 8192 }
 
 # [config.aether.sockets.throughput]
 # kind = "udp"
