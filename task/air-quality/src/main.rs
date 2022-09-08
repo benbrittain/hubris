@@ -2,122 +2,215 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! https://sensirion.com/media/documents/8600FF88/616542B5/Sensirion_PM_Sensors_Datasheet_SPS30.pdf
-
 #![no_std]
 #![no_main]
 
-use bme68x_rust::{
-    CommInterface, Device, DeviceConfig, Error, Filter, GasHeaterConfig,
-    Interface, Odr, OperationMode, Sample, SensorData,
-};
-use drv_i2c_api as i2c_api;
+use bme68x_rust::Interface;
+use drv_nrf52_uart_api::Uart;
+use drv_sensirion_sps32::{Sensiron, SensironError};
+use heapless::Vec;
+use minimq::Error as MqError;
+use minimq::{self, Minimq, Property, QoS, Retain};
+use postcard::{from_bytes, to_vec};
+use task_aether_api::*;
 use userlib::*;
 
+use drv_i2c_api as i2c_api;
+
+mod bme;
+mod clock_interop;
+mod tcp_interop;
+
+use bme::Bme;
+use clock_interop::ClockLayer;
+use tcp_interop::NetworkLayer;
+
+task_slot!(AETHER, aether);
+task_slot!(UART, uart);
 task_slot!(I2C, i2c_driver);
 
-include!(concat!(env!("OUT_DIR"), "/i2c_config.rs"));
+pub const AETHER_NOTIFICATION: u32 = 1 << 0;
+pub const PARTICLE_TIMER_NOTIFICATION: u32 = 1 << 7;
+pub const CO2_TIMER_NOTIFICATION: u32 = 1 << 8;
+pub const PARTICLE_TIMER_INTERVAL: u64 = 1000;
+pub const CO2_TIMER_INTERVAL: u64 = 1200;
+
+static SYS_LOGGER: SysLogger = SysLogger;
+pub struct SysLogger;
 
 #[derive(Debug)]
-struct NrfI2c {
-    pub i2c: i2c_api::I2cDevice,
+enum Error {
+    Sensiron(SensironError),
+    Mqtt(MqError<AetherError>),
 }
 
-impl Interface for NrfI2c {
-    fn interface_type(&self) -> CommInterface {
-        CommInterface::I2C
+impl log::Log for SysLogger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.level() <= log::max_level()
     }
 
-    fn read(
-        &self,
-        reg_addr: u8,
-        reg_data: &mut [u8],
-    ) -> Result<(), bme68x_rust::Error> {
-        let r = self.i2c.read_reg_into(reg_addr, reg_data);
-        //sys_log!("erro: {:?}", r);
-        Ok(())
+    fn log(&self, record: &log::Record) {
+        userlib::sys_log!("{} - {}", record.level(), record.args());
     }
-
-    fn write(
-        &self,
-        reg_addr: u8,
-        buf: &[u8],
-    ) -> Result<(), bme68x_rust::Error> {
-        let mut new_buf = [0; 16];
-        new_buf[0] = reg_addr;
-        new_buf[1..buf.len() + 1].copy_from_slice(buf);
-        //sys_log!("WRITE {:x}: {:x?}", reg_addr, buf);
-        let r = self.i2c.write(&new_buf[..buf.len() + 1]);
-        //sys_log!("res: {:?}", r);
-
-        //sys_log!("WRITE 2");
-        //self.i2c.write(buf);
-        Ok(())
-    }
-
-    fn delay(&self, d: u32) {
-        userlib::hl::sleep_for((d / 100).into())
-    }
+    fn flush(&self) {}
 }
 
-/// Set up the Bosch air quality peripheral
-fn setup_bme(i2c: i2c_api::I2cDevice) -> Result<Device<NrfI2c>, Error> {
-    let mut bme = match Device::initialize(NrfI2c { i2c }) {
-        Err(e) => {
-            sys_log!("Error in air-quality {:?}", e);
-            panic!();
+struct AirQuality {
+    mqtt: Minimq<NetworkLayer, ClockLayer, 256, 16>,
+    aether: Aether,
+    sensirion: Sensiron,
+    bme: Bme,
+}
+
+impl AirQuality {
+    pub fn new(
+        mqtt: Minimq<NetworkLayer, ClockLayer, 256, 16>,
+        aether: Aether,
+        sensirion: Sensiron,
+        bme: Bme,
+    ) -> Result<Self, Error> {
+        // Setup partical count peripheral
+        let started = sensirion.start_measurement();
+        if let Err(err) = started {
+            // The device could already be on
+            if err != SensironError::WrongDeviceState {
+                return Err(Error::Sensiron(err));
+            }
         }
-        Ok(b) => b,
-    };
 
-    // configure device
-    bme.set_config(
-        DeviceConfig::default()
-            .filter(Filter::Off)
-            .odr(Odr::StandbyNone)
-            .oversample_humidity(Sample::X16)
-            .oversample_pressure(Sample::Once)
-            .oversample_temperature(Sample::X2),
-    )?;
+        Ok(AirQuality {
+            mqtt,
+            aether,
+            sensirion,
+            bme,
+        })
+    }
 
-    // configure heater
-    bme.set_gas_heater_conf(
-        OperationMode::Forced,
-        GasHeaterConfig::default()
-            .enable()
-            .heater_temp(300)
-            .heater_duration(100),
-    )?;
+    /// Publish the gas sensor data over mqtt if any is available
+    fn send_gas_sensor_data(&mut self) {
+        use bme68x_rust::*;
+        sys_log!("gas daaaataaa");
+        self.bme.bme.set_op_mode(OperationMode::Forced).unwrap();
+        let del_period =
+            self.bme.bme.get_measure_duration(OperationMode::Forced)
+                + (300 * 1000);
+        self.bme.bme.interface.delay(del_period);
+        if let Ok(data) = self.bme.bme.get_data(OperationMode::Forced) {
+            let gas_data = air_quality_messages::Gases {
+                humidity: data.humidity,
+                temperature: data.temperature,
+                pressure: data.pressure,
+                voc: data.gas_resistance,
+            };
+            let encoded_msg: Vec<u8, 128> = to_vec(&gas_data).unwrap();
+            self.mqtt
+                .client
+                .publish(
+                    "gas",
+                    encoded_msg.as_slice(),
+                    QoS::AtMostOnce,
+                    Retain::NotRetained,
+                    //&[Property::UserProperty("version", "0")],
+                    &[],
+                )
+                .unwrap();
 
-    Ok(bme)
+            sys_log!("published gases");
+        }
+    }
+
+    /// Publish the particle sensor data over mqtt if any is available
+    fn send_particle_data(&mut self) {
+        if let Ok(Some(sensor_data)) = self.sensirion.read_value() {
+            // this is literally the same structure, maybe
+            // make the sps32 crate return this data directly?
+            let sensor_data = air_quality_messages::Particles {
+                pm1_0_mass: sensor_data.pm1_0_mass,
+                pm2_5_mass: sensor_data.pm2_5_mass,
+                pm4_0_mass: sensor_data.pm4_0_mass,
+                pm10_0_mass: sensor_data.pm10_0_mass,
+                pm0_5_number: sensor_data.pm0_5_number,
+                pm1_0_number: sensor_data.pm1_0_number,
+                pm2_5_number: sensor_data.pm2_5_number,
+                pm4_0_number: sensor_data.pm4_0_number,
+                pm10_0_number: sensor_data.pm10_0_number,
+                partical_size: sensor_data.partical_size,
+            };
+            let encoded_msg: Vec<u8, 128> = to_vec(&sensor_data).unwrap();
+            self.mqtt
+                .client
+                .publish(
+                    "particle",
+                    encoded_msg.as_slice(),
+                    QoS::AtMostOnce,
+                    Retain::NotRetained,
+                    //&[Property::UserProperty("version", "0")],
+                    &[],
+                )
+                .unwrap();
+            sys_log!("published particles");
+        }
+    }
+
+    fn poll(&mut self) -> Result<(), Error> {
+        self.send_particle_data();
+        self.send_gas_sensor_data();
+        self.mqtt
+            .poll(|client, topic, message, properties| {
+                sys_log!("polling");
+                match topic {
+                    "topic" => {
+                        let string = match core::str::from_utf8(message) {
+                            Ok(v) => v,
+                            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+                        };
+                        sys_log!("mqtt> '{}': '{}'", topic, string);
+                        client
+                            .publish(
+                                "echo",
+                                message,
+                                QoS::AtMostOnce,
+                                Retain::NotRetained,
+                                &[],
+                            )
+                            .unwrap();
+                    }
+                    topic => sys_log!("Unknown topic: {}", topic),
+                };
+            })
+            .map_err(|e| Error::Mqtt(e))?;
+        Ok(())
+    }
 }
 
 #[export_name = "main"]
 fn main() -> ! {
-    let i2c = i2c_config::devices::bme68x(I2C.get_task_id())[0];
-    let mut bme = setup_bme(i2c).unwrap();
-    sys_log!("Hello from air-quality");
+    log::set_logger(&SYS_LOGGER).unwrap();
+    log::set_max_level(log::LevelFilter::Info);
 
-    sys_log!("TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm)");
+    let uart = Uart::from(UART.get_task_id());
+    let aether = Aether::from(AETHER.get_task_id());
+    let addr = aether.resolve("portal.local".into()).unwrap();
+    let mut mqtt: Minimq<_, _, 256, 16> = Minimq::new(
+        addr.0.into(),
+        "mqtt-aethereo",
+        NetworkLayer {
+            aether: aether.clone(),
+            socket: SocketName::mqtt,
+        },
+        ClockLayer {},
+    )
+    .unwrap();
+
+    let sensirion = Sensiron::new(uart);
+
+    let bme = Bme::initialize().unwrap();
+
+    let mut aq = AirQuality::new(mqtt, aether, sensirion, bme).unwrap();
+
     loop {
-        // Set operating mode
-        bme.set_op_mode(OperationMode::Forced).unwrap();
-
-        // Delay the remaining duration that can be used for heating
-        let del_period =
-            bme.get_measure_duration(OperationMode::Forced) + (300 * 1000);
-        bme.interface.delay(del_period);
-
-        // Get the sensor data
-        if let Ok(data) = bme.get_data(OperationMode::Forced) {
-            sys_log!(
-                "{:?}, {:.2}, {:.2}, {:.2} {:.2}",
-                sys_get_timer().now,
-                data.temperature,
-                data.pressure,
-                data.humidity,
-                data.gas_resistance,
-            );
-        }
+        aq.poll().unwrap();
     }
 }
+
+include!(concat!(env!("OUT_DIR"), "/i2c_config.rs"));

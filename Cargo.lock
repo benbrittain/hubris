@@ -2844,20 +2844,7 @@ dependencies = [
  "cobs",
  "const_format",
  "heapless",
- "postcard-derive 0.1.1",
- "serde",
-]
-
-[[package]]
-name = "postcard"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c2b180dc0bade59f03fd005cb967d3f1e5f69b13922dad0cd6e047cb8af2363"
-dependencies = [
- "cobs",
- "const_format",
- "heapless",
- "postcard-derive 0.1.0",
+ "postcard-derive",
  "serde",
 ]
 
@@ -2866,17 +2853,6 @@ name = "postcard-cobs"
 version = "0.1.5-pre"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c68cb38ed13fd7bc9dd5db8f165b7c8d9c1a315104083a2b10f11354c2af97f"
-
-[[package]]
-name = "postcard-derive"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9a87b20c0f64e4a835a7f006bff0bbcefed3bf67828fd4608579e6b51e1ebd0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "postcard-derive"
@@ -3651,12 +3627,23 @@ dependencies = [
 name = "task-air-quality"
 version = "0.1.0"
 dependencies = [
+ "air-quality-messages",
  "bme68x-rust",
  "build-i2c",
  "build-util",
  "cortex-m",
  "drv-i2c-api",
  "drv-i2c-devices",
+ "drv-nrf52-uart-api",
+ "drv-sensirion-sps32",
+ "heapless",
+ "log",
+ "minimq",
+ "num-traits",
+ "postcard 1.0.2",
+ "serde",
+ "ssmarshal",
+ "task-aether-api",
  "userlib",
 ]
 
@@ -3798,25 +3785,6 @@ dependencies = [
  "vsc7448-pac",
  "vsc85xx",
  "zerocopy",
-]
-
-[[package]]
-name = "task-mqtt"
-version = "0.1.0"
-dependencies = [
- "air-quality-messages",
- "cortex-m",
- "drv-nrf52-uart-api",
- "drv-sensirion-sps32",
- "heapless",
- "log",
- "minimq",
- "num-traits",
- "postcard 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde",
- "ssmarshal",
- "task-aether-api",
- "userlib",
 ]
 
 [[package]]

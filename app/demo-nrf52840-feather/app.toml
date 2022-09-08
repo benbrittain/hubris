@@ -19,7 +19,7 @@ stacksize = 1536
 
 [tasks.idle]
 name = "task-idle"
-priority = 6
+priority = 8
 max-sizes = {flash = 128, ram = 256}
 stacksize = 256
 start = true
@@ -39,12 +39,12 @@ max-sizes = {flash = 4096, ram = 1024}
 start = true
 uses = ["gpio0"]
 
-# [tasks.blinky]
-# name = "task-blinky"
-# priority = 4
-# max-sizes = {flash = 1024, ram = 1024}
-# start = true
-# task-slots = ["gpio"]
+[tasks.blinky]
+name = "task-blinky"
+priority = 6
+max-sizes = {flash = 1024, ram = 1024}
+start = true
+task-slots = ["gpio"]
 
 [tasks.uart]
 name = "drv-nrf52-uart"
@@ -75,24 +75,14 @@ uses = ["radio", "ficr", "rng", "clock"]
 task-slots = ["rng_driver"]
 interrupts = { "radio.irq" = 1 }
 
-[tasks.mqtt]
-name = "task-mqtt"
-priority = 4
-max-sizes = {flash = 65536, ram = 32768 }
-start = true
-features = ["userlib/log-itm", "userlib/panic-messages"]
-task-slots = ["aether", "uart"]
-stacksize = 16384
-
 [tasks.air_quality]
 name = "task-air-quality"
 priority = 5
-max-sizes = {flash = 65536, ram = 4096}
+max-sizes = {flash = 131072, ram = 32768 }
 start = true
-features = ["itm", "userlib/log-itm"]
-task-slots = ["i2c_driver"]
-stacksize = 1024
-
+features = ["userlib/log-itm", "userlib/panic-messages"]
+task-slots = ["aether", "uart", "i2c_driver"]
+stacksize = 16384
 
 [tasks.i2c_driver]
 name = "drv-nrf52-i2c"
@@ -127,7 +117,7 @@ channel = 19
 
 [config.aether.sockets.mqtt]
 kind = "tcp"
-owner = {name = "mqtt", notification = 1}
+owner = {name = "air_quality", notification = 1}
 tx = { bytes = 2048 }
 rx = { bytes = 8192 }
 
