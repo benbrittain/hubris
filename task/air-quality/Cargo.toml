@@ -21,6 +21,7 @@ bme68x-rust = "*"
 drv-i2c-api = {path = "../../drv/i2c-api"}
 drv-i2c-devices = { path = "../../drv/i2c-devices" }
 cty = "0.2.1"
+nb = "*"
 
 [build-dependencies]
 bindgen = "0.60.0"
