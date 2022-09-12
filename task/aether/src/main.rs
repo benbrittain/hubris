@@ -180,6 +180,7 @@ fn main() -> ! {
     }
 
     userlib::sys_irq_control(RADIO_IRQ, true);
+
     let mut server = server::AetherServer::new(
         socket_handles,
         socket_set,
