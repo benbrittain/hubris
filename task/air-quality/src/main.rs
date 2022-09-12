@@ -19,6 +19,7 @@ use userlib::*;
 use drv_i2c_api as i2c_api;
 
 mod bme;
+mod bsec;
 mod clock_interop;
 mod tcp_interop;
 
