@@ -1,6 +1,5 @@
 use bme68x_rust::*;
-use drv_i2c_api as i2c_api;
-use drv_i2c_api::I2cDevice;
+use drv_i2c_api::{self as i2c_api, I2cDevice};
 use userlib::*;
 
 pub struct Bme {
@@ -57,8 +56,9 @@ impl Interface for NrfI2c {
         reg_addr: u8,
         reg_data: &mut [u8],
     ) -> Result<(), bme68x_rust::Error> {
-        let r = self.i2c.read_reg_into(reg_addr, reg_data);
-        //sys_log!("erro: {:?}", r);
+        self.i2c
+            .read_reg_into(reg_addr, reg_data)
+            .map_err(|_| bme68x_rust::Error::Unknown)?;
         Ok(())
     }
 
@@ -70,12 +70,9 @@ impl Interface for NrfI2c {
         let mut new_buf = [0; 16];
         new_buf[0] = reg_addr;
         new_buf[1..buf.len() + 1].copy_from_slice(buf);
-        //sys_log!("WRITE {:x}: {:x?}", reg_addr, buf);
-        let r = self.i2c.write(&new_buf[..buf.len() + 1]);
-        //sys_log!("res: {:?}", r);
-
-        //sys_log!("WRITE 2");
-        //self.i2c.write(buf);
+        self.i2c
+            .write(&new_buf[..buf.len() + 1])
+            .map_err(|_| bme68x_rust::Error::Unknown)?;
         Ok(())
     }
 
