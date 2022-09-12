@@ -18,8 +18,8 @@ use sys::{
     BSEC_MAX_WORKBUFFER_SIZE,
 };
 
-pub mod compat;
 pub mod bme;
+pub mod compat;
 pub mod error;
 
 use sys::*;
@@ -72,7 +72,8 @@ impl<S: BmeSensor> Bsec<S> {
     pub fn update_subscription(
         &mut self,
         bsec_requested_outputs: &[SubscriptionRequest],
-        required_sensor_settings: &mut [RequiredInput; BSEC_MAX_PHYSICAL_SENSOR as usize],
+        required_sensor_settings: &mut [RequiredInput;
+                 BSEC_MAX_PHYSICAL_SENSOR as usize],
     ) -> Result<usize, Error<S::Error>> {
         let mut n_required_sensor_settings = BSEC_MAX_PHYSICAL_SENSOR as u8;
         unsafe {

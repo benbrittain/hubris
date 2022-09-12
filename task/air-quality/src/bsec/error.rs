@@ -29,12 +29,19 @@ impl<E: Debug> Display for Error<E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         use Error::*;
         match self {
-            ArgumentListTooLong => f.write_str("argument list to BSEC too long"),
-            BsecAlreadyInUse => f.write_str("the BSEC instances has already been acquired"),
-            BsecError(err) => f.write_fmt(format_args!("BSEC library error: {}", err)),
-            ConversionError(err) => {
-                f.write_fmt(format_args!("unexpected BSEC return value: {}", err))
+            ArgumentListTooLong => {
+                f.write_str("argument list to BSEC too long")
             }
+            BsecAlreadyInUse => {
+                f.write_str("the BSEC instances has already been acquired")
+            }
+            BsecError(err) => {
+                f.write_fmt(format_args!("BSEC library error: {}", err))
+            }
+            ConversionError(err) => f.write_fmt(format_args!(
+                "unexpected BSEC return value: {}",
+                err
+            )),
             BmeSensorError(err) => f.write_fmt(format_args!(
                 "communication failure with BME sensor: {:?}",
                 err
@@ -81,11 +88,15 @@ impl Display for ConversionError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         use ConversionError::*;
         match self {
-            InvalidSampleRate(x) => f.write_fmt(format_args!("invalid sample rate: {}", x)),
+            InvalidSampleRate(x) => {
+                f.write_fmt(format_args!("invalid sample rate: {}", x))
+            }
             InvalidVirtualSensorId(x) => {
                 f.write_fmt(format_args!("invalid virtual sensor ID: {}", x))
             }
-            InvalidAccuracy(x) => f.write_fmt(format_args!("invalid accuracy: {}", x)),
+            InvalidAccuracy(x) => {
+                f.write_fmt(format_args!("invalid accuracy: {}", x))
+            }
         }
     }
 }
@@ -146,17 +157,33 @@ impl From<bsec_library_return_t> for BsecError {
         use super::sys::*;
         use BsecError::*;
         match return_code {
-            bsec_library_return_t_BSEC_E_DOSTEPS_INVALIDINPUT => DoStepsInvalidInput,
-            bsec_library_return_t_BSEC_E_DOSTEPS_VALUELIMITS => DoStepsValueLimits,
-            bsec_library_return_t_BSEC_E_DOSTEPS_DUPLICATEINPUT => DoStepsDuplicateInput,
-            bsec_library_return_t_BSEC_I_DOSTEPS_NOOUTPUTSRETURNABLE => DoStepsNoOutputsReturnable,
-            bsec_library_return_t_BSEC_W_DOSTEPS_EXCESSOUTPUTS => DoStepsExcessOutputs,
+            bsec_library_return_t_BSEC_E_DOSTEPS_INVALIDINPUT => {
+                DoStepsInvalidInput
+            }
+            bsec_library_return_t_BSEC_E_DOSTEPS_VALUELIMITS => {
+                DoStepsValueLimits
+            }
+            bsec_library_return_t_BSEC_E_DOSTEPS_DUPLICATEINPUT => {
+                DoStepsDuplicateInput
+            }
+            bsec_library_return_t_BSEC_I_DOSTEPS_NOOUTPUTSRETURNABLE => {
+                DoStepsNoOutputsReturnable
+            }
+            bsec_library_return_t_BSEC_W_DOSTEPS_EXCESSOUTPUTS => {
+                DoStepsExcessOutputs
+            }
             bsec_library_return_t_BSEC_W_DOSTEPS_TSINTRADIFFOUTOFRANGE => {
                 DoStepsTsIntraDiffOutOfRange
             }
-            bsec_library_return_t_BSEC_E_SU_WRONGDATARATE => UpdateSubscriptionWrongDataRate,
-            bsec_library_return_t_BSEC_E_SU_SAMPLERATELIMITS => UpdateSubscriptionSampleRateLimits,
-            bsec_library_return_t_BSEC_E_SU_DUPLICATEGATE => UpdateSubscriptionDuplicateGate,
+            bsec_library_return_t_BSEC_E_SU_WRONGDATARATE => {
+                UpdateSubscriptionWrongDataRate
+            }
+            bsec_library_return_t_BSEC_E_SU_SAMPLERATELIMITS => {
+                UpdateSubscriptionSampleRateLimits
+            }
+            bsec_library_return_t_BSEC_E_SU_DUPLICATEGATE => {
+                UpdateSubscriptionDuplicateGate
+            }
             bsec_library_return_t_BSEC_E_SU_INVALIDSAMPLERATE => {
                 UpdateSubscriptionInvalidSampleRate
             }
@@ -172,8 +199,12 @@ impl From<bsec_library_return_t> for BsecError {
             bsec_library_return_t_BSEC_E_SU_HIGHHEATERONDURATION => {
                 UpdateSubscriptionHighHeaterOnDuration
             }
-            bsec_library_return_t_BSEC_W_SU_UNKNOWNOUTPUTGATE => UpdateSubscriptionUnkownOutputGate,
-            bsec_library_return_t_BSEC_W_SU_MODINNOULP => UpdateSubscriptionModeInNonUlp,
+            bsec_library_return_t_BSEC_W_SU_UNKNOWNOUTPUTGATE => {
+                UpdateSubscriptionUnkownOutputGate
+            }
+            bsec_library_return_t_BSEC_W_SU_MODINNOULP => {
+                UpdateSubscriptionModeInNonUlp
+            }
             bsec_library_return_t_BSEC_I_SU_SUBSCRIBEDOUTPUTGATES => {
                 UpdateSubscriptionSubscribedOutputGates
             }
@@ -181,15 +212,25 @@ impl From<bsec_library_return_t> for BsecError {
                 ParseSectionExceedsWorkBuffer
             }
             bsec_library_return_t_BSEC_E_CONFIG_FAIL => ConfigFail,
-            bsec_library_return_t_BSEC_E_CONFIG_VERSIONMISMATCH => ConfigVersionMismatch,
-            bsec_library_return_t_BSEC_E_CONFIG_FEATUREMISMATCH => ConfigFeatureMismatch,
-            bsec_library_return_t_BSEC_E_CONFIG_CRCMISMATCH => ConfigCrcMismatch,
+            bsec_library_return_t_BSEC_E_CONFIG_VERSIONMISMATCH => {
+                ConfigVersionMismatch
+            }
+            bsec_library_return_t_BSEC_E_CONFIG_FEATUREMISMATCH => {
+                ConfigFeatureMismatch
+            }
+            bsec_library_return_t_BSEC_E_CONFIG_CRCMISMATCH => {
+                ConfigCrcMismatch
+            }
             bsec_library_return_t_BSEC_E_CONFIG_EMPTY => ConfigEmpty,
             bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTWORKBUFFER => {
                 ConfigInsufficientWorkBuffer
             }
-            bsec_library_return_t_BSEC_E_CONFIG_INVALIDSTRINGSIZE => ConfigInvalidStringSize,
-            bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTBUFFER => ConfigInsufficientBuffer,
+            bsec_library_return_t_BSEC_E_CONFIG_INVALIDSTRINGSIZE => {
+                ConfigInvalidStringSize
+            }
+            bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTBUFFER => {
+                ConfigInsufficientBuffer
+            }
             bsec_library_return_t_BSEC_E_SET_INVALIDCHANNELIDENTIFIER => {
                 SetInvalidChannelIdentifier
             }

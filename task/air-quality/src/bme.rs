@@ -1,9 +1,9 @@
-use core::time::Duration;
-use bme68x_rust::*;
-use drv_i2c_api::{self as i2c_api, I2cDevice};
-use userlib::*;
 use crate::bsec::bme::*;
 use crate::bsec::Input;
+use bme68x_rust::*;
+use core::time::Duration;
+use drv_i2c_api::{self as i2c_api, I2cDevice};
+use userlib::*;
 
 pub struct Bme {
     pub bme: Device<NrfI2c>,

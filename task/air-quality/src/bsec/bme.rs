@@ -1,7 +1,7 @@
 //! Interface to BME sensors to read physical measurements.
 
-use super::Input;
 use super::sys::bsec_bme_settings_t;
+use super::Input;
 use core::{fmt::Debug, time::Duration};
 
 pub trait BmeSensor {
@@ -15,7 +15,10 @@ pub trait BmeSensor {
     ///
     /// Shoud return the duration after which the measurement will be available
     /// or an error.
-    fn start_measurement(&mut self, settings: &BmeSettingsHandle) -> Result<Duration, Self::Error>;
+    fn start_measurement(
+        &mut self,
+        settings: &BmeSettingsHandle,
+    ) -> Result<Duration, Self::Error>;
 
     /// Read a finished sensor measurement.
     ///
@@ -25,7 +28,10 @@ pub trait BmeSensor {
     /// To compensate for heat sources near the sensor, add an additional output
     /// to the vector, using the sensor type [`super::InputKind::HeatSource`]
     /// and the desired correction in degrees Celsius.
-    fn get_measurement(&mut self, out: &mut [Input]) -> nb::Result<usize, Self::Error>;
+    fn get_measurement(
+        &mut self,
+        out: &mut [Input],
+    ) -> nb::Result<usize, Self::Error>;
 }
 
 /// Handle to a struct with settings for the BME sensor.

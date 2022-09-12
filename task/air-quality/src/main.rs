@@ -89,7 +89,8 @@ impl AirQuality {
                 sensor: bsec::OutputKind::Iaq,
             }],
             &mut sensors,
-        ).map_err(|e| Error::Bsec(e))?;
+        )
+        .map_err(|e| Error::Bsec(e))?;
 
         Ok(AirQuality {
             mqtt,

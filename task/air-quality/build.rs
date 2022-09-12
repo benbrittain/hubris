@@ -16,7 +16,8 @@ fn main() {
 fn bsec() {
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("bsec.rs");
 
-    let bsec_include_path = PathBuf::from("./bsec-generic/algo/normal_version/inc/");
+    let bsec_include_path =
+        PathBuf::from("./bsec-generic/algo/normal_version/inc/");
     let bsec_library_path =
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
             .join("./bsec-generic/algo/normal_version/bin/gcc/Cortex_M4F/");
