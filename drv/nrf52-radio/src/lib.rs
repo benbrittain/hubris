@@ -87,8 +87,8 @@ enum RadioState {
 /// Interface to the radio peripheral.
 pub struct Radio<'a> {
     radio: &'a device::radio::RegisterBlock,
-    transmit_buffer: RingBufferTx<16>,
-    receive_buffer: RingBufferRx<16>,
+    transmit_buffer: RingBufferTx<32>,
+    receive_buffer: RingBufferRx<32>,
     mode: UnsafeCell<DriverState>,
     channel: Option<Channel>,
 }
@@ -99,8 +99,8 @@ impl Radio<'_> {
 
         Radio {
             radio,
-            transmit_buffer: RingBufferTx::<16>::new(),
-            receive_buffer: RingBufferRx::<16>::new(),
+            transmit_buffer: RingBufferTx::<32>::new(),
+            receive_buffer: RingBufferRx::<32>::new(),
             mode: UnsafeCell::new(DriverState::Sleep),
             channel: None,
         }
@@ -151,13 +151,13 @@ impl Radio<'_> {
 
     /// Point the EasyDMA engine at a valid memory region
     /// for receptionand transmission of packets.
-    fn configure_packet_buffer(&self, buf: &RingBufferTx<16>) {
+    fn configure_packet_buffer(&self, buf: &RingBufferTx<32>) {
         buf.set_as_buffer(&self);
     }
 
     /// Point the EasyDMA engine at a valid memory region
     /// for receptionand transmission of packets.
-    fn configure_packet_buffer_recv(&self, buf: &RingBufferRx<16>) {
+    fn configure_packet_buffer_recv(&self, buf: &RingBufferRx<32>) {
         buf.set_as_buffer(&self);
     }
 

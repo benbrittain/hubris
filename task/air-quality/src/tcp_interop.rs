@@ -63,10 +63,18 @@ impl TcpClientStack for NetworkLayer {
         socket: &mut <Self as TcpClientStack>::TcpSocket,
         bytes: &[u8],
     ) -> Result<usize, MqError<<Self as TcpClientStack>::Error>> {
-        self.aether
-            .send_tcp_data(self.socket, bytes)
-            .map_err(|e| MqError::Other(e))
-            .map(|e| e as usize)
+        match self.aether.send_tcp_data(self.socket, bytes) {
+            Ok(len) => {
+                return Ok(len as usize);
+            }
+            Err(AetherError::QueueFull) => {
+                // Our incoming queue is empty. Wait for more packets.
+                return Err(MqError::WouldBlock);
+            }
+            Err(e) => {
+                return Err(MqError::Other(e));
+            }
+        }
     }
 
     fn receive(

@@ -133,18 +133,18 @@ impl AirQuality {
 
     fn publish<T: Serialize>(&mut self, channel: &str, msg: T) {
         let encoded_msg: Vec<u8, 128> = to_vec(&msg).unwrap();
-        self.mqtt
-            .client
-            .publish(
-                channel,
-                encoded_msg.as_slice(),
-                QoS::AtMostOnce,
-                Retain::NotRetained,
-                //&[Property::UserProperty("version", "0")],
-                &[],
-            )
-            .unwrap();
-        sys_log!("published {}", channel);
+        if let Err(err) = self.mqtt.client.publish(
+            channel,
+            encoded_msg.as_slice(),
+            QoS::AtMostOnce,
+            Retain::NotRetained,
+            //&[Property::UserProperty("version", "0")],
+            &[],
+        ) {
+            sys_log!("Did not publish: {:?}", err);
+        } else {
+            sys_log!("published {}", channel);
+        }
     }
 
     fn poll(&mut self) -> Result<(), Error> {
@@ -204,7 +204,9 @@ fn main() -> ! {
     let mut aq = AirQuality::new(mqtt, aether, sensirion, bme).unwrap();
 
     loop {
-        aq.poll().unwrap();
+        if let Err(err) = aq.poll() {
+            sys_log!("Error: {:?}", err);
+        }
     }
 }
 

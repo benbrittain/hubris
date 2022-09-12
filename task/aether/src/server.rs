@@ -292,12 +292,12 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
                 self.client_waiting_to_send[socket_index] = false;
                 Ok(len)
             }
-            //Err(smoltcp::Error::Exhausted) => {
-            //    self.client_waiting_to_send[socket_index] = true;
-            //    Err(AetherError::QueueFull.into())
-            //}
             Ok(Err(_)) => Err(RequestError::Fail(ClientError::WentAway)),
-            Err(_) => Err(AetherError::Unknown.into()),
+            Err(_) => {
+                self.client_waiting_to_send[socket_index] = true;
+                // there might be other circumstances where this happens?
+                Err(AetherError::QueueFull.into())
+            } //Err(_) => Err(AetherError::Unknown.into()),
         }
     }
 
