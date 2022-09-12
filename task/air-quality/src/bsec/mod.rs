@@ -18,6 +18,7 @@ use sys::{
     BSEC_MAX_WORKBUFFER_SIZE,
 };
 
+pub mod compat;
 pub mod bme;
 pub mod error;
 
