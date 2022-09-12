@@ -7,7 +7,6 @@ use core::marker::PhantomData;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use error::{BsecError, ConversionError, Error};
-#[cfg(not(feature = "docs-rs"))]
 use sys::{
     bsec_bme_settings_t, bsec_do_steps, bsec_get_configuration, bsec_get_state,
     bsec_get_version, bsec_init, bsec_input_t, bsec_library_return_t,
@@ -72,7 +71,7 @@ impl<S: BmeSensor> Bsec<S> {
     pub fn update_subscription(
         &mut self,
         bsec_requested_outputs: &[SubscriptionRequest],
-        required_sensor_settings: &mut [RequiredInput],
+        required_sensor_settings: &mut [RequiredInput; BSEC_MAX_PHYSICAL_SENSOR as usize],
     ) -> Result<usize, Error<S::Error>> {
         let mut n_required_sensor_settings = BSEC_MAX_PHYSICAL_SENSOR as u8;
         unsafe {
@@ -312,7 +311,7 @@ pub fn get_version() -> Result<(u8, u8, u8, u8), BsecError> {
 }
 
 /// Encapsulates data read from a BME physical sensor.
-type Input = bsec_input_t;
+pub type Input = bsec_input_t;
 
 /// Single virtual sensor output of the BSEC algorithm.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -387,7 +386,7 @@ impl From<&SubscriptionRequest> for bsec_sensor_configuration_t {
 }
 
 /// Describes a physical BME sensor that needs to be sampled.
-type RequiredInput = bsec_sensor_configuration_t;
+pub type RequiredInput = bsec_sensor_configuration_t;
 
 /// Valid sampling rates for the BSEC algorithm.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -611,5 +610,13 @@ impl IntoResult for bsec_library_return_t {
 #[allow(non_snake_case)]
 #[allow(non_upper_case_globals)]
 mod sys {
+    impl Default for bsec_sensor_configuration_t {
+        fn default() -> Self {
+            Self {
+                sample_rate: 0.0,
+                sensor_id: 0,
+            }
+        }
+    }
     include!(concat!(env!("OUT_DIR"), "/bsec.rs"));
 }

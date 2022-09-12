@@ -24,6 +24,7 @@ mod clock_interop;
 mod tcp_interop;
 
 use bme::Bme;
+use bsec::Bsec;
 use clock_interop::ClockLayer;
 use tcp_interop::NetworkLayer;
 
@@ -44,6 +45,7 @@ pub struct SysLogger;
 enum Error {
     Sensiron(SensironError),
     Mqtt(MqError<AetherError>),
+    Bsec(bsec::error::Error<bme68x_rust::Error>),
 }
 
 impl log::Log for SysLogger {
@@ -61,7 +63,7 @@ struct AirQuality {
     mqtt: Minimq<NetworkLayer, ClockLayer, 256, 16>,
     aether: Aether,
     sensirion: Sensiron,
-    bme: Bme,
+    bsec: Bsec<Bme>,
 }
 
 impl AirQuality {
@@ -69,7 +71,7 @@ impl AirQuality {
         mqtt: Minimq<NetworkLayer, ClockLayer, 256, 16>,
         aether: Aether,
         sensirion: Sensiron,
-        bme: Bme,
+        mut bsec: Bsec<Bme>,
     ) -> Result<Self, Error> {
         // Setup partical count peripheral
         let started = sensirion.start_measurement();
@@ -80,34 +82,43 @@ impl AirQuality {
             }
         }
 
+        let mut sensors = Default::default();
+        bsec.update_subscription(
+            &[bsec::SubscriptionRequest {
+                sample_rate: bsec::SampleRate::Lp,
+                sensor: bsec::OutputKind::Iaq,
+            }],
+            &mut sensors,
+        ).map_err(|e| Error::Bsec(e))?;
+
         Ok(AirQuality {
             mqtt,
             aether,
             sensirion,
-            bme,
+            bsec,
         })
     }
 
     /// Publish the gas sensor data over mqtt if any is available
     fn send_gas_sensor_data(&mut self) {
-        // TODO isolation of the bme logic is kinda messy, reconsider if we do refactoring
-        // TODO do this in parallel so we don't block as long
-        use bme68x_rust::*;
-        self.bme.bme.set_op_mode(OperationMode::Forced).unwrap();
-        let del_period =
-            self.bme.bme.get_measure_duration(OperationMode::Forced)
-                + (300 * 1000);
-        self.bme.bme.interface.delay(del_period);
+        //// TODO isolation of the bme logic is kinda messy, reconsider if we do refactoring
+        //// TODO do this in parallel so we don't block as long
+        //use bme68x_rust::*;
+        //self.bme.bme.set_op_mode(OperationMode::Forced).unwrap();
+        //let del_period =
+        //    self.bme.bme.get_measure_duration(OperationMode::Forced)
+        //        + (300 * 1000);
+        //self.bme.bme.interface.delay(del_period);
 
-        if let Ok(data) = self.bme.bme.get_data(OperationMode::Forced) {
-            let gas_data = air_quality_messages::Gases {
-                humidity: data.humidity,
-                temperature: data.temperature,
-                pressure: data.pressure,
-                voc: data.gas_resistance,
-            };
-            self.publish("gas", gas_data);
-        }
+        //if let Ok(data) = self.bme.bme.get_data(OperationMode::Forced) {
+        //    let gas_data = air_quality_messages::Gases {
+        //        humidity: data.humidity,
+        //        temperature: data.temperature,
+        //        pressure: data.pressure,
+        //        voc: data.gas_resistance,
+        //    };
+        //    self.publish("gas", gas_data);
+        //}
     }
 
     /// Publish the particle sensor data over mqtt if any is available
@@ -201,8 +212,9 @@ fn main() -> ! {
     let sensirion = Sensiron::new(uart);
 
     let bme = Bme::initialize().unwrap();
+    let mut bsec: Bsec<_> = bsec::Bsec::init(bme).unwrap();
 
-    let mut aq = AirQuality::new(mqtt, aether, sensirion, bme).unwrap();
+    let mut aq = AirQuality::new(mqtt, aether, sensirion, bsec).unwrap();
 
     loop {
         if let Err(err) = aq.poll() {

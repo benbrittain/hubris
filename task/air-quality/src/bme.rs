@@ -1,6 +1,9 @@
+use core::time::Duration;
 use bme68x_rust::*;
 use drv_i2c_api::{self as i2c_api, I2cDevice};
 use userlib::*;
+use crate::bsec::bme::*;
+use crate::bsec::Input;
 
 pub struct Bme {
     pub bme: Device<NrfI2c>,
@@ -38,6 +41,23 @@ impl Bme {
         )?;
 
         Ok(Bme { bme })
+    }
+}
+
+impl crate::bsec::bme::BmeSensor for Bme {
+    type Error = bme68x_rust::Error;
+
+    fn start_measurement(
+        &mut self,
+        settings: &BmeSettingsHandle,
+    ) -> Result<Duration, Self::Error> {
+        todo!()
+    }
+    fn get_measurement(
+        &mut self,
+        out: &mut [Input],
+    ) -> nb::Result<usize, Self::Error> {
+        todo!()
     }
 }
 
