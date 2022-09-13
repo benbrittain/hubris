@@ -83,11 +83,35 @@ impl AirQuality {
         }
 
         let mut sensors = Default::default();
+        use bsec::{
+            OutputKind, SampleRate, SubscriptionRequest, VirtualSensor,
+        };
         bsec.update_subscription(
-            &[bsec::SubscriptionRequest {
-                sample_rate: bsec::SampleRate::Lp,
-                sensor: bsec::OutputKind::Iaq,
-            }],
+            &[
+                SubscriptionRequest {
+                    sample_rate: SampleRate::Lp.into(),
+                    sensor_id: VirtualSensor::from(OutputKind::RawTemperature)
+                        as u8,
+                },
+                SubscriptionRequest {
+                    sample_rate: SampleRate::Lp.into(),
+                    sensor_id: VirtualSensor::from(OutputKind::RawHumidity)
+                        as u8,
+                },
+                SubscriptionRequest {
+                    sample_rate: SampleRate::Lp.into(),
+                    sensor_id: VirtualSensor::from(OutputKind::RawPressure)
+                        as u8,
+                },
+                SubscriptionRequest {
+                    sample_rate: SampleRate::Lp.into(),
+                    sensor_id: VirtualSensor::from(OutputKind::Iaq) as u8,
+                },
+                SubscriptionRequest {
+                    sample_rate: SampleRate::Lp.into(),
+                    sensor_id: VirtualSensor::from(OutputKind::RawGas) as u8,
+                },
+            ],
             &mut sensors,
         )
         .map_err(|e| Error::Bsec(e))?;
@@ -102,24 +126,53 @@ impl AirQuality {
 
     /// Publish the gas sensor data over mqtt if any is available
     fn send_gas_sensor_data(&mut self) {
-        //// TODO isolation of the bme logic is kinda messy, reconsider if we do refactoring
-        //// TODO do this in parallel so we don't block as long
-        //use bme68x_rust::*;
-        //self.bme.bme.set_op_mode(OperationMode::Forced).unwrap();
-        //let del_period =
-        //    self.bme.bme.get_measure_duration(OperationMode::Forced)
-        //        + (300 * 1000);
-        //self.bme.bme.interface.delay(del_period);
+        let next_measurement = self.bsec.next_measurement();
+        userlib::hl::sleep_until((next_measurement / 1_000_000) as u64);
+        let dur = nb::block!(self.bsec.start_next_measurement()).unwrap();
+        userlib::hl::sleep_for(dur.as_millis() as u64);
+        let mut outputs: [_; 5] = Default::default();
+        let num_out =
+            nb::block!(self.bsec.process_last_measurement(&mut outputs))
+                .unwrap();
 
-        //if let Ok(data) = self.bme.bme.get_data(OperationMode::Forced) {
-        //    let gas_data = air_quality_messages::Gases {
-        //        humidity: data.humidity,
-        //        temperature: data.temperature,
-        //        pressure: data.pressure,
-        //        voc: data.gas_resistance,
-        //    };
-        //    self.publish("gas", gas_data);
-        //}
+        use crate::bsec::OutputKind;
+        let mut humidity = None;
+        let mut temperature = None;
+        let mut pressure = None;
+        let mut voc = None;
+        let mut iaq = None;
+        let mut iaq_accuracy = None;
+        for sensor in &outputs[..num_out] {
+            match OutputKind::try_from(sensor.sensor_id).unwrap() {
+                OutputKind::Iaq => {
+                    iaq = Some(sensor.signal);
+                    iaq_accuracy = Some(sensor.accuracy);
+                }
+                OutputKind::RawGas => {
+                    voc = Some(sensor.signal);
+                }
+                OutputKind::RawTemperature => {
+                    temperature = Some(sensor.signal);
+                }
+                OutputKind::RawPressure => {
+                    pressure = Some(sensor.signal);
+                }
+                OutputKind::RawHumidity => {
+                    humidity = Some(sensor.signal);
+                }
+                _ => todo!(),
+            }
+        }
+
+        let gas_data = air_quality_messages::Gases {
+            humidity: humidity.expect("bad subscription"),
+            temperature: temperature.expect("bad subscription"),
+            pressure: pressure.expect("bad subscription"),
+            iaq: iaq.expect("bad subscription"),
+            iaq_accuracy: iaq_accuracy.expect("bad subscription"),
+            voc: voc.expect("bad subscription"),
+        };
+        self.publish("gas", gas_data);
     }
 
     /// Publish the particle sensor data over mqtt if any is available
@@ -165,7 +218,6 @@ impl AirQuality {
         self.send_gas_sensor_data();
         self.mqtt
             .poll(|client, topic, message, properties| {
-                sys_log!("polling");
                 match topic {
                     "topic" => {
                         let string = match core::str::from_utf8(message) {

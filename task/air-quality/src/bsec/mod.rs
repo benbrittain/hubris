@@ -35,7 +35,7 @@ pub struct Bsec<S: BmeSensor> {
 }
 
 fn get_nanos() -> i64 {
-    (userlib::sys_get_timer().now * 1000) as i64
+    (userlib::sys_get_timer().now * 1_000_000) as i64
 }
 
 impl<S: BmeSensor> Bsec<S> {
@@ -71,32 +71,32 @@ impl<S: BmeSensor> Bsec<S> {
     /// as input to the BSEC algorithm.
     pub fn update_subscription(
         &mut self,
-        bsec_requested_outputs: &[SubscriptionRequest],
+        requested_virtual_sensors: &[SubscriptionRequest],
         required_sensor_settings: &mut [RequiredInput;
                  BSEC_MAX_PHYSICAL_SENSOR as usize],
     ) -> Result<usize, Error<S::Error>> {
         let mut n_required_sensor_settings = BSEC_MAX_PHYSICAL_SENSOR as u8;
         unsafe {
             bsec_update_subscription(
-                bsec_requested_outputs.as_ptr()
+                requested_virtual_sensors.as_ptr()
                     as *const bsec_sensor_configuration_t,
-                bsec_requested_outputs.len() as u8,
+                requested_virtual_sensors.len() as u8,
                 required_sensor_settings.as_mut_ptr(),
                 &mut n_required_sensor_settings,
             )
             .into_result()?
         }
-        for changed in bsec_requested_outputs.iter() {
-            match changed.sample_rate {
+        for changed in requested_virtual_sensors.iter() {
+            match changed.sample_rate.into() {
                 SampleRate::Disabled => {
-                    self.subscribed &= !(changed.sensor as u32);
-                    self.ulp_plus_queue &= !(changed.sensor as u32);
+                    self.subscribed &= !(changed.sensor_id as u32);
+                    self.ulp_plus_queue &= !(changed.sensor_id as u32);
                 }
                 SampleRate::UlpMeasurementOnDemand => {
-                    self.ulp_plus_queue |= changed.sensor as u32;
+                    self.ulp_plus_queue |= changed.sensor_id as u32;
                 }
                 _ => {
-                    self.subscribed |= changed.sensor as u32;
+                    self.subscribed |= changed.sensor_id as u32;
                 }
             }
         }
@@ -164,11 +164,14 @@ impl<S: BmeSensor> Bsec<S> {
             .get_measurement(&mut inputs)
             .map_err(|e| e.map(Error::BmeSensorError))?;
 
-        assert!(
-            outputs.len()
-                == (self.subscribed | self.ulp_plus_queue).count_ones()
-                    as usize
-        );
+        userlib::sys_log!("{} {}", outputs.len(), self.subscribed.count_ones());
+        //assert!(
+        //    outputs.len()
+        //        == (self.subscribed | self.ulp_plus_queue).count_ones()
+        //            as usize,
+        //            "Incorrect number of outputs for the number subscribed too"
+
+        //);
 
         let mut num_outputs: u8 = outputs
             .len()
@@ -316,34 +319,7 @@ pub fn get_version() -> Result<(u8, u8, u8, u8), BsecError> {
 pub type Input = bsec_input_t;
 
 /// Single virtual sensor output of the BSEC algorithm.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Output {
-    /// Timestamp (nanoseconds) of the measurement.
-    ///
-    /// This timestamp is based on the [`Clock`] instance used by [`Bsec`].
-    pub timestamp_ns: i64,
-
-    /// Signal value of the virtual sensor.
-    pub signal: f64,
-
-    /// Type of virtual sensor.
-    pub sensor: OutputKind,
-
-    /// Accuracy of the virtual sensor.
-    pub accuracy: Accuracy,
-}
-
-impl TryFrom<&bsec_output_t> for Output {
-    type Error = ConversionError;
-    fn try_from(output: &bsec_output_t) -> Result<Self, ConversionError> {
-        Ok(Self {
-            timestamp_ns: output.time_stamp,
-            signal: output.signal.into(),
-            sensor: output.sensor_id.try_into()?,
-            accuracy: output.accuracy.try_into()?,
-        })
-    }
-}
+pub type Output = bsec_output_t;
 
 /// Sensor accuracy level.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -369,23 +345,18 @@ impl TryFrom<u8> for Accuracy {
 }
 
 /// Describes a virtual sensor output to request from the *Bosch BSEC* library.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct SubscriptionRequest {
-    /// Desired sample rate of the virtual sensor output.
-    pub sample_rate: SampleRate,
-    /// Desired virtual output to sample.
-    pub sensor: OutputKind,
-}
+pub type SubscriptionRequest = bsec_sensor_configuration_t;
 
-impl From<&SubscriptionRequest> for bsec_sensor_configuration_t {
-    fn from(sensor_configuration: &SubscriptionRequest) -> Self {
-        Self {
-            sample_rate: sensor_configuration.sample_rate.into(),
-            sensor_id: bsec_virtual_sensor_t::from(sensor_configuration.sensor)
-                as u8,
-        }
-    }
-}
+pub type VirtualSensor = bsec_virtual_sensor_t;
+//impl From<&SubscriptionRequest> for bsec_sensor_configuration_t {
+//    fn from(sensor_configuration: &SubscriptionRequest) -> Self {
+//        Self {
+//            sample_rate: sensor_configuration.sample_rate.into(),
+//            sensor_id: bsec_virtual_sensor_t::from(sensor_configuration.sensor)
+//                as u8,
+//        }
+//    }
+//}
 
 /// Describes a physical BME sensor that needs to be sampled.
 pub type RequiredInput = bsec_sensor_configuration_t;
@@ -405,6 +376,52 @@ pub enum SampleRate {
     ///
     /// See *Bosch BSEC* documentation.
     UlpMeasurementOnDemand,
+}
+
+impl From<f32> for SampleRate {
+    fn from(sample_rate: f32) -> Self {
+        SampleRate::from(sample_rate as f64)
+    }
+}
+
+// this is real ugly, but I don't want to rework the bsec crate
+// wrapper logic
+impl From<f64> for SampleRate {
+    fn from(sample_rate: f64) -> Self {
+        use sys::*;
+        use SampleRate::*;
+        let d = 0.1;
+        match sample_rate {
+            x if (BSEC_SAMPLE_RATE_DISABLED - d
+                ..BSEC_SAMPLE_RATE_DISABLED + d)
+                .contains(&x) =>
+            {
+                Disabled
+            }
+            x if (BSEC_SAMPLE_RATE_ULP - d..BSEC_SAMPLE_RATE_ULP + d)
+                .contains(&x) =>
+            {
+                Ulp
+            }
+            x if (BSEC_SAMPLE_RATE_CONT - d..BSEC_SAMPLE_RATE_CONT + d)
+                .contains(&x) =>
+            {
+                Continuous
+            }
+            x if (BSEC_SAMPLE_RATE_LP - d..BSEC_SAMPLE_RATE_LP + d)
+                .contains(&x) =>
+            {
+                Lp
+            }
+            x if (BSEC_SAMPLE_RATE_ULP_MEASUREMENT_ON_DEMAND - d
+                ..BSEC_SAMPLE_RATE_ULP_MEASUREMENT_ON_DEMAND + d)
+                .contains(&x) =>
+            {
+                UlpMeasurementOnDemand
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl From<SampleRate> for f32 {
@@ -612,6 +629,27 @@ impl IntoResult for bsec_library_return_t {
 #[allow(non_snake_case)]
 #[allow(non_upper_case_globals)]
 mod sys {
+    impl Default for bsec_input_t {
+        fn default() -> Self {
+            Self {
+                time_stamp: 0,
+                signal: 0.0,
+                signal_dimensions: 1,
+                sensor_id: 0,
+            }
+        }
+    }
+    impl Default for bsec_output_t {
+        fn default() -> Self {
+            Self {
+                time_stamp: 0,
+                signal: 0.0,
+                signal_dimensions: 0,
+                sensor_id: 0,
+                accuracy: 0,
+            }
+        }
+    }
     impl Default for bsec_sensor_configuration_t {
         fn default() -> Self {
             Self {

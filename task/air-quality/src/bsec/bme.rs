@@ -1,5 +1,7 @@
 //! Interface to BME sensors to read physical measurements.
 
+use bme68x_rust::Sample;
+
 use super::sys::bsec_bme_settings_t;
 use super::Input;
 use core::{fmt::Debug, time::Duration};
@@ -30,7 +32,7 @@ pub trait BmeSensor {
     /// and the desired correction in degrees Celsius.
     fn get_measurement(
         &mut self,
-        out: &mut [Input],
+        inputs: &mut [Input],
     ) -> nb::Result<usize, Self::Error>;
 }
 
@@ -39,6 +41,7 @@ pub trait BmeSensor {
 /// Retrieve the settings from this handle to configure your BME sensor
 /// appropriately in [`BmeSensor::start_measurement`] for the measurements
 /// requested by the BSEC algorithm.
+#[derive(Debug)]
 pub struct BmeSettingsHandle<'a> {
     bme_settings: &'a bsec_bme_settings_t,
 }
@@ -64,17 +67,17 @@ impl<'a> BmeSettingsHandle<'a> {
     }
 
     /// Returns the desired oversampling of barometric pressure measurements.
-    pub fn pressure_oversampling(&self) -> u8 {
-        self.bme_settings.pressure_oversampling
+    pub fn pressure_oversampling(&self) -> Sample {
+        self.bme_settings.pressure_oversampling.into()
     }
 
     /// Returns the desired oversampling of temperature measurements.
-    pub fn temperature_oversampling(&self) -> u8 {
-        self.bme_settings.temperature_oversampling
+    pub fn temperature_oversampling(&self) -> Sample {
+        self.bme_settings.temperature_oversampling.into()
     }
 
     /// Returns the desired oversampling of humidity measurements.
-    pub fn humidity_oversampling(&self) -> u8 {
-        self.bme_settings.humidity_oversampling
+    pub fn humidity_oversampling(&self) -> Sample {
+        self.bme_settings.humidity_oversampling.into()
     }
 }

@@ -51,13 +51,52 @@ impl crate::bsec::bme::BmeSensor for Bme {
         &mut self,
         settings: &BmeSettingsHandle,
     ) -> Result<Duration, Self::Error> {
-        todo!()
+        sys_log!("Settings: {:?}", settings);
+        self.bme.set_config(
+            DeviceConfig::default()
+                .oversample_humidity(settings.humidity_oversampling())
+                .oversample_pressure(settings.pressure_oversampling())
+                .oversample_temperature(settings.temperature_oversampling()),
+        )?;
+        if settings.run_gas() {
+            self.bme.set_gas_heater_conf(
+                OperationMode::Forced,
+                GasHeaterConfig::default()
+                    .enable()
+                    .heater_temp(settings.heater_temperature())
+                    .heater_duration(settings.heating_duration()),
+            );
+        } else {
+            self.bme.set_gas_heater_conf(
+                OperationMode::Forced,
+                GasHeaterConfig::default().disable(),
+            );
+        }
+        let mut dur = self.bme.get_measure_duration(OperationMode::Forced);
+        dur += settings.heating_duration() as u32;
+        self.bme.set_op_mode(OperationMode::Forced).unwrap();
+        Ok(Duration::from_nanos(dur as u64))
     }
+
     fn get_measurement(
         &mut self,
-        out: &mut [Input],
+        inputs: &mut [Input],
     ) -> nb::Result<usize, Self::Error> {
-        todo!()
+        let data = self.bme.get_data(OperationMode::Forced).unwrap();
+        use crate::bsec::InputKind::*;
+        inputs[0].sensor_id = Temperature.into();
+        inputs[0].signal = data.temperature;
+
+        inputs[1].sensor_id = Pressure.into();
+        inputs[1].signal = data.pressure;
+
+        inputs[2].sensor_id = Humidity.into();
+        inputs[2].signal = data.humidity;
+
+        inputs[3].sensor_id = GasResistor.into();
+        inputs[3].signal = data.gas_resistance;
+
+        Ok(4)
     }
 }
 
