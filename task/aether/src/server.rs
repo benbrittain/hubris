@@ -285,7 +285,7 @@ impl idl::InOrderAetherImpl for AetherServer<'_> {
             } else {
                 payload.len()
             };
-            match payload.read_range(0..payload.len(), buf) {
+            match payload.read_range(0..len, &mut buf[..len]) {
                 Ok(_) => (len, Ok(len as u32)),
                 Err(e) => (0, Err(e)),
             }
@@ -467,11 +467,11 @@ impl NotificationHandler for AetherServer<'_> {
     }
 
     fn handle_notification(&mut self, bits: u32) {
-        if bits & TIMER_MASK != 0 {
-            sys_log!("TIMER GONE OFF");
-            let deadline = sys_get_timer().now + TIMER_INTERVAL;
-            sys_set_timer(Some(deadline), TIMER_MASK);
-        }
+        //if bits & TIMER_MASK != 0 {
+        //    sys_log!("TIMER GONE OFF");
+        let deadline = sys_get_timer().now + TIMER_INTERVAL;
+        sys_set_timer(Some(deadline), TIMER_MASK);
+        //}
         // Interrupt dispatch.
         self.device.handle_interrupt();
         if bits & RADIO_IRQ != 0 {
