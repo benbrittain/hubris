@@ -172,7 +172,7 @@ impl AirQuality {
             iaq_accuracy: iaq_accuracy.expect("bad subscription"),
             voc: voc.expect("bad subscription"),
         };
-        self.publish("gas", gas_data);
+        self.publish("gas", gas_data).unwrap();
     }
 
     /// Publish the particle sensor data over mqtt if any is available
@@ -193,24 +193,27 @@ impl AirQuality {
                 partical_size: sensor_data.partical_size,
             };
 
-            self.publish("particle", sensor_data);
+            self.publish("particle", sensor_data).unwrap();
         }
     }
 
-    fn publish<T: Serialize>(&mut self, channel: &str, msg: T) {
+    fn publish<T: Serialize>(
+        &mut self,
+        channel: &str,
+        msg: T,
+    ) -> Result<(), Error> {
         let encoded_msg: Vec<u8, 128> = to_vec(&msg).unwrap();
-        if let Err(err) = self.mqtt.client.publish(
-            channel,
-            encoded_msg.as_slice(),
-            QoS::AtMostOnce,
-            Retain::NotRetained,
-            //&[Property::UserProperty("version", "0")],
-            &[],
-        ) {
-            sys_log!("Did not publish: {:?}", err);
-        } else {
-            sys_log!("published {}", channel);
-        }
+        self.mqtt
+            .client
+            .publish(
+                channel,
+                encoded_msg.as_slice(),
+                QoS::AtMostOnce,
+                Retain::NotRetained,
+                //&[Property::UserProperty("version", "0")],
+                &[],
+            )
+            .map_err(|e| Error::Mqtt(e))
     }
 
     fn poll(&mut self) -> Result<(), Error> {
