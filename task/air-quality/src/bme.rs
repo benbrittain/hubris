@@ -51,7 +51,6 @@ impl crate::bsec::bme::BmeSensor for Bme {
         &mut self,
         settings: &BmeSettingsHandle,
     ) -> Result<Duration, Self::Error> {
-        sys_log!("Settings: {:?}", settings);
         self.bme.set_config(
             DeviceConfig::default()
                 .oversample_humidity(settings.humidity_oversampling())

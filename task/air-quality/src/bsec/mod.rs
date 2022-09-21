@@ -164,15 +164,6 @@ impl<S: BmeSensor> Bsec<S> {
             .get_measurement(&mut inputs)
             .map_err(|e| e.map(Error::BmeSensorError))?;
 
-        userlib::sys_log!("{} {}", outputs.len(), self.subscribed.count_ones());
-        //assert!(
-        //    outputs.len()
-        //        == (self.subscribed | self.ulp_plus_queue).count_ones()
-        //            as usize,
-        //            "Incorrect number of outputs for the number subscribed too"
-
-        //);
-
         let mut num_outputs: u8 = outputs
             .len()
             .try_into()
