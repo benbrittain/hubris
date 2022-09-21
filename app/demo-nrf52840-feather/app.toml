@@ -119,11 +119,4 @@ channel = 19
 kind = "tcp"
 owner = {name = "air_quality", notification = 1}
 tx = { bytes = 2048 }
-rx = { bytes = 8192 }
-
-# [config.aether.sockets.throughput]
-# kind = "udp"
-# port = 2001
-# owner = {name = "throughput", notification = 1}
-# tx = { packets = 1, bytes = 1024 }
-# rx = { packets = 8, bytes = 1024 }
+rx = { bytes = 2048 }
